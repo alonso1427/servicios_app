@@ -1,1 +1,2048 @@
-<h1>funciona</h1>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Gestión de Clases Personalizadas</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff4444;
+    --success: #4caf50;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+  header span {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+  }
+  .nav-tabs {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+  }
+  .nav-tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .nav-tab:hover { color: var(--text); background: var(--surface2); }
+  .nav-tab.active { color: var(--bg); background: var(--accent); font-weight: 600; }
+
+  /* LAYOUT */
+  .app { display: flex; }
+  .main { flex: 1; padding: 32px; max-width: 1400px; margin: 0 auto; width: 100%; }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .section-title span { color: var(--accent); }
+  .section-sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.5px; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #d4eb00; transform: translateY(-1px); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 0.75rem; padding: 6px 12px; }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+  .btn-accent2 { background: var(--accent2); color: #fff; }
+  .btn-accent2:hover { background: #e05a25; }
+
+  /* CARDS GRID */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--accent);
+    border-radius: 4px 0 0 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .card:hover { border-color: #444; transform: translateY(-2px); }
+  .card:hover::before { opacity: 1; }
+
+  .card-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .card-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 14px;
+  }
+  .card-meta strong { color: var(--text); }
+  .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* PROGRESS BAR */
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .progress-fill.danger { background: var(--danger); }
+  .progress-fill.warning { background: var(--accent2); }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::after {
+    content: attr(data-icon);
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 2rem;
+    opacity: 0.08;
+  }
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.5px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .modal-header {
+    padding: 24px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 0 24px 24px; }
+  .modal-footer { padding: 0 24px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .form-control {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 10px 14px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .form-control::placeholder { color: var(--muted); opacity: 0.6; }
+  textarea.form-control { resize: vertical; min-height: 80px; }
+  select.form-control { cursor: pointer; }
+  select.form-control option { background: var(--surface2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface2); }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  td {
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-active { background: rgba(232,255,71,0.15); color: var(--accent); }
+  .badge-done   { background: rgba(76,175,80,0.15);  color: var(--success); }
+  .badge-warn   { background: rgba(255,107,53,0.15); color: var(--accent2); }
+  .badge-danger { background: rgba(255,68,68,0.15);  color: var(--danger); }
+
+  /* AUDITORIA */
+  .audit-notice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .audit-notice strong { color: var(--text); }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+
+  /* CALENDARIO SEMANAL */
+  .calendar-table { border-collapse: collapse; width: 100%; min-width: 1300px; }
+  .calendar-table th, .calendar-table td { border: 1px solid var(--border); padding: 0; text-align: center; }
+  .calendar-table thead th {
+    background: var(--surface2); color: var(--muted); font-size: 0.7rem;
+    padding: 10px 4px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .cal-day-head {
+    background: var(--surface2); color: var(--text); font-size: 0.8rem; font-weight: 600;
+    padding: 10px 10px; white-space: nowrap; min-width: 110px; text-align: left;
+  }
+  .cal-day-date { display: block; color: var(--muted); font-weight: 400; font-size: 0.7rem; margin-top: 2px; }
+  .cal-cell { min-width: 82px; height: 54px; vertical-align: top; padding: 3px; }
+  tr.cal-today .cal-day-head, tr.cal-today .cal-cell { background: rgba(232,255,71,0.06); }
+  .cal-session {
+    background: rgba(232,255,71,0.16);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    padding: 3px 6px;
+    margin-bottom: 2px;
+    font-size: 0.68rem;
+    text-align: left;
+    cursor: pointer;
+    line-height: 1.25;
+    transition: background 0.15s;
+  }
+  .cal-session:hover { background: rgba(232,255,71,0.32); }
+  .cal-session-name {
+    display: block; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px;
+  }
+  .cal-session-num { display: block; color: var(--accent); font-size: 0.64rem; letter-spacing: 0.3px; }
+  .cal-range-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--accent); letter-spacing: 1px; white-space: nowrap; }
+
+  /* PAGO CARD */
+  .pago-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .pago-header {
+    background: var(--surface2);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pago-profe {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
+  }
+  .pago-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.2rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .pago-body { padding: 16px 20px; }
+  .pago-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.87rem;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pago-row:last-child { border-bottom: none; }
+  .pago-row-client { color: var(--muted); }
+  .pago-row-monto { font-family: 'DM Mono', monospace; color: var(--accent); font-size: 0.9rem; }
+
+  /* EMPTY STATE */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+  .empty-text { font-size: 0.9rem; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(232,255,71,0.1);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    gap: 4px;
+  }
+
+  /* UPLOAD AREA */
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface2);
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .upload-area:hover { border-color: var(--accent); background: rgba(232,255,71,0.04); }
+  .upload-area.has-file { border-color: var(--success); border-style: solid; }
+  .upload-preview-img {
+    max-width: 100%;
+    max-height: 160px;
+    border-radius: 6px;
+    object-fit: contain;
+  }
+  .upload-file-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--success);
+  }
+  .upload-remove {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .upload-remove:hover { background: rgba(255,68,68,0.15); }
+
+  /* COMPROBANTE BADGE EN TABLA */
+  .comp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: rgba(76,175,80,0.15);
+    color: var(--success);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .comp-badge:hover { background: rgba(76,175,80,0.3); }
+  .no-comp { font-size: 0.78rem; color: var(--muted); }
+
+  /* MODAL COMPROBANTE VIEWER */
+  #modal-comp-viewer .modal { max-width: 700px; }
+  #comp-viewer-content img { max-width: 100%; border-radius: 8px; }
+  #comp-viewer-content iframe { width: 100%; height: 500px; border-radius: 8px; border: none; }
+
+  @media (max-width: 600px) {
+    .main { padding: 16px; }
+    header { padding: 0 16px; }
+    header h1 { font-size: 1.5rem; }
+    .nav-tab span { display: none; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GymTrack</h1>
+  <span>Clases Personalizadas</span>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('dashboard')">📊 <span>Dashboard</span></button>
+    <button class="nav-tab" onclick="showView('contratos')">📋 <span>Contratos</span></button>
+    <button class="nav-tab" onclick="showView('sesiones')">🏋️ <span>Sesiones</span></button>
+    <button class="nav-tab" onclick="showView('calendario')">📅 <span>Calendario</span></button>
+    <button class="nav-tab" onclick="intentarAccederPagos()">💰 <span>Pagos</span></button>
+    <button class="nav-tab" onclick="showView('config')">⚙️ <span>Config</span></button>
+    <button class="nav-tab" onclick="showView('auditoria')">🔒 <span>Auditoría</span></button>
+  </nav>
+</header>
+
+<div class="app">
+  <main class="main">
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <div class="view active" id="view-dashboard">
+      <div class="section-header">
+        <div>
+          <div class="section-title">RESUMEN <span>GENERAL</span></div>
+          <div class="section-sub">Vista rápida del estado del gimnasio</div>
+        </div>
+      </div>
+      <div class="stats-row" id="stats-row"></div>
+      <div class="section-title" style="font-size:1.4rem;margin-bottom:16px;">Contratos <span>Activos</span></div>
+      <div class="cards-grid" id="dashboard-contratos"></div>
+    </div>
+
+    <!-- ===================== CONTRATOS ===================== -->
+    <div class="view" id="view-contratos">
+      <div class="section-header">
+        <div>
+          <div class="section-title">GESTIÓN DE <span>CONTRATOS</span></div>
+          <div class="section-sub">Registra clientes, profes y paquetes de sesiones</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModalContrato()">+ Nuevo Contrato</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Profesor</th>
+              <th>Sesiones</th>
+              <th>Progreso</th>
+              <th>Monto Total</th>
+              <th>Valor/Sesión</th>
+              <th>% Gimnasio</th>
+              <th>Neto Profe/Sesión</th>
+              <th>Comprobante</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-contratos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== SESIONES ===================== -->
+    <div class="view" id="view-sesiones">
+      <div class="section-header">
+        <div>
+          <div class="section-title">REGISTRO DE <span>SESIONES</span></div>
+          <div class="section-sub">Historial completo de clases realizadas</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModalSesion()">+ Registrar Sesión</button>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" id="filter-desde">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" id="filter-hasta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profesor</label>
+          <select class="form-control" id="filter-profe-ses">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cliente</label>
+          <select class="form-control" id="filter-cliente-ses">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" onclick="renderSesiones()">Filtrar</button>
+        <button class="btn btn-secondary" onclick="clearFiltersSes()">Limpiar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Cliente</th>
+              <th>Profesor</th>
+              <th>Valor Sesión</th>
+              <th>Comentario</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-sesiones"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== CALENDARIO ===================== -->
+    <div class="view" id="view-calendario">
+      <div class="section-header">
+        <div>
+          <div class="section-title">CALENDARIO <span>SEMANAL</span></div>
+          <div class="section-sub">Sesiones agendadas de lunes a domingo, por bloque horario</div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <button class="btn btn-secondary" onclick="cambiarSemana(-1)">← Semana anterior</button>
+        <button class="btn btn-secondary" onclick="irHoy()">Hoy</button>
+        <button class="btn btn-secondary" onclick="cambiarSemana(1)">Semana siguiente →</button>
+        <div class="form-group">
+          <label class="form-label">Ir a fecha</label>
+          <input type="date" class="form-control" id="cal-fecha-jump" onchange="irAFecha()">
+        </div>
+        <div class="cal-range-label" id="cal-rango" style="margin-left:auto;"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="calendar-table">
+          <thead id="cal-thead"></thead>
+          <tbody id="tabla-calendario"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== PAGOS ===================== -->
+    <div class="view" id="view-pagos">
+      <div class="section-header">
+        <div>
+          <div class="section-title">LIQUIDACIÓN DE <span>PAGOS</span></div>
+          <div class="section-sub">Calcula cuánto pagar a cada profesor por período</div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" id="pago-desde">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" id="pago-hasta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profesor</label>
+          <select class="form-control" id="pago-profe-filter">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="calcularPagos()">Calcular Pagos</button>
+      </div>
+      <div id="pagos-resultado"></div>
+    </div>
+
+    <!-- ===================== CONFIG ===================== -->
+    <div class="view" id="view-config">
+      <div class="section-header">
+        <div>
+          <div class="section-title">CONFIGURACIÓN</div>
+          <div class="section-sub">Gestiona profesores y clientes</div>
+        </div>
+      </div>
+      <div class="cards-grid" style="grid-template-columns: 1fr 1fr;">
+        <!-- Profesores -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div class="section-title" style="font-size:1.3rem;">👟 <span>Profesores</span></div>
+            <button class="btn btn-primary btn-sm" onclick="openModalProfe()">+ Agregar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+              <tbody id="tabla-profes"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Clientes -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div class="section-title" style="font-size:1.3rem;">🏃 <span>Clientes</span></div>
+            <button class="btn btn-primary btn-sm" onclick="openModalCliente()">+ Agregar</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+              <tbody id="tabla-clientes"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== AUDITORÍA ===================== -->
+    <div class="view" id="view-auditoria">
+      <div class="section-header">
+        <div>
+          <div class="section-title">REGISTRO DE <span>AUDITORÍA</span></div>
+          <div class="section-sub">Historial de todas las modificaciones realizadas en el sistema</div>
+        </div>
+      </div>
+      <div class="audit-notice">
+        🔒 <span>Esta hoja es de <strong>solo lectura</strong>: registra automáticamente cada creación, edición y eliminación. No puede editarse ni borrarse — es para gestión interna.</span>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">Desde</label>
+          <input type="date" class="form-control" id="audit-desde">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hasta</label>
+          <input type="date" class="form-control" id="audit-hasta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Acción</label>
+          <select class="form-control" id="audit-accion">
+            <option value="">Todas</option>
+            <option value="crear">Creación</option>
+            <option value="editar">Edición</option>
+            <option value="eliminar">Eliminación</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Entidad</label>
+          <select class="form-control" id="audit-entidad">
+            <option value="">Todas</option>
+            <option value="sesion">Sesiones</option>
+            <option value="contrato">Contratos</option>
+            <option value="profe">Profesores</option>
+            <option value="cliente">Clientes</option>
+          </select>
+        </div>
+        <button class="btn btn-secondary" onclick="renderAuditoria()">Filtrar</button>
+        <button class="btn btn-secondary" onclick="clearFiltersAudit()">Limpiar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha y hora</th>
+              <th>Acción</th>
+              <th>Entidad</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-auditoria"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Modal Contrato -->
+<div class="modal-overlay" id="modal-contrato">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-contrato-title">NUEVO CONTRATO</span>
+      <button class="modal-close" onclick="closeModal('modal-contrato')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Cliente *</label>
+        <select class="form-control" id="c-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Profesor *</label>
+        <select class="form-control" id="c-profe"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Total de Sesiones *</label>
+          <input type="number" class="form-control" id="c-sesiones" min="1" placeholder="Ej: 12" oninput="actualizarPreviewComision()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto Total ($) *</label>
+          <input type="number" class="form-control" id="c-monto" min="0" placeholder="Ej: 150000" oninput="actualizarPreviewComision()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">% Cobro Gimnasio</label>
+          <input type="number" class="form-control" id="c-comision" min="0" max="100" step="0.1" placeholder="Ej: 20" oninput="actualizarPreviewComision()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor Neto Profesor / Sesión</label>
+          <input type="text" class="form-control" id="c-neto-preview" disabled placeholder="Se calcula automáticamente">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fecha Inicio</label>
+          <input type="date" class="form-control" id="c-inicio">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha Fin</label>
+          <input type="date" class="form-control" id="c-fin">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea class="form-control" id="c-notas" placeholder="Observaciones del contrato..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comprobante de Pago</label>
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('c-comprobante').click()">
+          <input type="file" id="c-comprobante" accept="image/*,.pdf" style="display:none" onchange="handleFileUpload(event)">
+          <div id="upload-placeholder">
+            <div style="font-size:2rem;margin-bottom:8px;">📎</div>
+            <div style="font-size:0.85rem;color:var(--muted);">Haz clic para subir imagen o PDF</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">JPG, PNG, PDF — máx 5MB</div>
+          </div>
+          <div id="upload-preview" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-contrato')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-contrato" onclick="guardarContrato()">Guardar Contrato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Sesión -->
+<div class="modal-overlay" id="modal-sesion">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-sesion-title">REGISTRAR SESIÓN</span>
+      <button class="modal-close" onclick="closeModal('modal-sesion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Contrato (Cliente / Profesor) *</label>
+        <select class="form-control" id="s-contrato" onchange="actualizarInfoContrato()"></select>
+      </div>
+      <div id="contrato-info" style="display:none;" class="card" style="margin-bottom:14px;padding:12px;">
+        <div class="card-meta" id="contrato-info-text"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Fecha *</label>
+          <input type="date" class="form-control" id="s-fecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora *</label>
+          <input type="time" class="form-control" id="s-hora">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Duración (min)</label>
+        <input type="number" class="form-control" id="s-duracion" min="15" step="15" placeholder="60">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comentario</label>
+        <textarea class="form-control" id="s-comentario" placeholder="Descripción de la sesión, logros, observaciones..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-sesion')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-sesion" onclick="guardarSesion()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Profesor -->
+<div class="modal-overlay" id="modal-profe">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">NUEVO PROFESOR</span>
+      <button class="modal-close" onclick="closeModal('modal-profe')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nombre completo *</label>
+        <input type="text" class="form-control" id="p-nombre" placeholder="Ej: Carlos Mendoza">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="p-email" placeholder="carlos@gym.cl">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teléfono</label>
+        <input type="text" class="form-control" id="p-telefono" placeholder="+56 9 1234 5678">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-profe')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProfe()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cliente -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">NUEVO CLIENTE</span>
+      <button class="modal-close" onclick="closeModal('modal-cliente')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nombre completo *</label>
+        <input type="text" class="form-control" id="cl-nombre" placeholder="Ej: Ana Torres">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="cl-email" placeholder="ana@email.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teléfono</label>
+        <input type="text" class="form-control" id="cl-telefono" placeholder="+56 9 9876 5432">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Comprobante Viewer -->
+<div class="modal-overlay" id="modal-comp-viewer">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <span class="modal-title">COMPROBANTE DE PAGO</span>
+      <button class="modal-close" onclick="closeModal('modal-comp-viewer')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="comp-viewer-content" style="text-align:center;"></div>
+    </div>
+    <div class="modal-footer">
+      <a id="comp-download-link" href="#" download class="btn btn-secondary">⬇ Descargar</a>
+      <button class="btn btn-primary" onclick="closeModal('modal-comp-viewer')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Clave Pagos -->
+<div class="modal-overlay" id="modal-pagos-pass">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title">🔒 ACCESO A PAGOS</span>
+      <button class="modal-close" onclick="closeModal('modal-pagos-pass')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Clave de acceso</label>
+        <input type="password" class="form-control" id="pagos-pass-input" placeholder="••••••••" onkeydown="if(event.key==='Enter'){event.preventDefault();verificarPasswordPagos();}">
+      </div>
+      <div id="pagos-pass-error" style="display:none;color:var(--danger);font-size:0.8rem;margin-top:-6px;">Clave incorrecta. Intenta nuevamente.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-pagos-pass')">Cancelar</button>
+      <button class="btn btn-primary" onclick="verificarPasswordPagos()">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======================================================================
+// CONFIGURACIÓN DE SUPABASE
+// Reemplaza estos dos valores por los de tu proyecto:
+// Project Settings → API → Project URL / anon public key
+// ======================================================================
+const SUPABASE_URL = 'https://wyyvgomzrfjcqbdpfbyu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXZnb216cmZqY3FiZHBmYnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NzAzMzQsImV4cCI6MjEwMDE0NjMzNH0.spUP4vOXSpXnDR9QH9KrDX8sHNqvVf9LC1tsAjcUZOI';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== FILE UPLOAD =====
+let pendingFile = null;       // File real, se sube a Supabase Storage al guardar el contrato
+let pendingFileData = null;   // { name, type, dataUrl } — solo para la previsualización local
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('El archivo supera 5MB.'); return; }
+
+  pendingFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    pendingFileData = { name: file.name, type: file.type, dataUrl: e.target.result };
+    renderUploadPreview();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderUploadPreview() {
+  const area = document.getElementById('upload-area');
+  const placeholder = document.getElementById('upload-placeholder');
+  const preview = document.getElementById('upload-preview');
+
+  if (!pendingFileData) {
+    area.classList.remove('has-file');
+    placeholder.style.display = 'flex';
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    return;
+  }
+
+  area.classList.add('has-file');
+  placeholder.style.display = 'none';
+  preview.style.display = 'block';
+
+  if (pendingFileData.type.startsWith('image/')) {
+    preview.innerHTML = `
+      <img src="${pendingFileData.dataUrl}" class="upload-preview-img" alt="comprobante">
+      <div style="margin-top:8px;" class="upload-file-name">
+        <span>✅ ${pendingFileData.name}</span>
+        <button class="upload-remove" onclick="clearUpload(event)">✕</button>
+      </div>`;
+  } else {
+    preview.innerHTML = `
+      <div class="upload-file-name" style="justify-content:center;">
+        <span style="font-size:2rem;">📄</span>
+        <span>✅ ${pendingFileData.name}</span>
+        <button class="upload-remove" onclick="clearUpload(event)">✕</button>
+      </div>`;
+  }
+}
+
+function clearUpload(e) {
+  e.stopPropagation();
+  pendingFile = null;
+  pendingFileData = null;
+  document.getElementById('c-comprobante').value = '';
+  renderUploadPreview();
+  document.getElementById('upload-placeholder').style.display = 'flex';
+}
+
+// Sube el comprobante al bucket "comprobantes" de Supabase Storage y devuelve su URL pública
+async function subirComprobante(file) {
+  try {
+    const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error: upErr } = await supabaseClient.storage.from('comprobantes').upload(path, file);
+    if (upErr) { console.error('Error al subir comprobante:', upErr); return null; }
+    const { data } = supabaseClient.storage.from('comprobantes').getPublicUrl(path);
+    return { name: file.name, type: file.type, url: data.publicUrl };
+  } catch (e) {
+    console.error('Error al subir comprobante:', e);
+    return null;
+  }
+}
+
+function verComprobante(cid) {
+  const c = getContrato(cid);
+  if (!c.comprobante) return;
+  const { name, type, url } = c.comprobante;
+  const viewer = document.getElementById('comp-viewer-content');
+  const dl = document.getElementById('comp-download-link');
+  dl.href = url;
+  dl.download = name || 'comprobante';
+  // Detecta imagen por el tipo guardado o, si falta, por la extensión del archivo (más robusto)
+  const esImagen = (type && type.startsWith('image/')) || /\.(png|jpe?g|gif|webp)$/i.test(url || '');
+  if (esImagen) {
+    viewer.innerHTML = `<img src="${url}" style="max-width:100%;max-height:70vh;border-radius:8px;cursor:zoom-in;" onclick="window.open(this.src, '_blank')" title="Clic para ver en tamaño completo">`;
+  } else {
+    viewer.innerHTML = `<iframe src="${url}"></iframe>`;
+  }
+  openModal('modal-comp-viewer');
+}
+
+
+// ===== BASE DE DATOS (Supabase) =====
+// Caché local en memoria — se llena al iniciar y se sincroniza en cada operación
+let db = { profes: [], clientes: [], contratos: [], sesiones: [], auditoria: [] };
+
+async function cargarTodo() {
+  const [profes, clientes, contratos, sesiones, auditoria] = await Promise.all([
+    fetchProfes(), fetchClientes(), fetchContratos(), fetchSesiones(), fetchAuditoria()
+  ]);
+  db.profes = profes;
+  db.clientes = clientes;
+  db.contratos = contratos;
+  db.sesiones = sesiones;
+  db.auditoria = auditoria;
+}
+
+async function fetchProfes() {
+  const { data, error } = await supabaseClient.from('profes').select('*').order('nombre');
+  if (error) { console.error(error); mostrarErrorConexion(error); return []; }
+  return data.map(r => ({ id: r.id, nombre: r.nombre, email: r.email, telefono: r.telefono }));
+}
+
+async function fetchClientes() {
+  const { data, error } = await supabaseClient.from('clientes').select('*').order('nombre');
+  if (error) { console.error(error); mostrarErrorConexion(error); return []; }
+  return data.map(r => ({ id: r.id, nombre: r.nombre, email: r.email, telefono: r.telefono }));
+}
+
+async function fetchContratos() {
+  const { data, error } = await supabaseClient.from('contratos').select('*').order('id');
+  if (error) { console.error(error); mostrarErrorConexion(error); return []; }
+  return data.map(r => ({
+    id: r.id, clienteId: r.cliente_id, profeId: r.profe_id,
+    sesionesTotal: r.sesiones_total, monto: Number(r.monto), comisionGym: Number(r.comision_gym || 0),
+    inicio: r.inicio, fin: r.fin, notas: r.notas,
+    comprobante: r.comprobante_url ? { name: r.comprobante_nombre, type: r.comprobante_tipo, url: r.comprobante_url } : null,
+    activo: r.activo
+  }));
+}
+
+async function fetchSesiones() {
+  const { data, error } = await supabaseClient.from('sesiones').select('*').order('fecha', { ascending: true });
+  if (error) { console.error(error); mostrarErrorConexion(error); return []; }
+  return data.map(r => ({
+    id: r.id, contratoId: r.contrato_id, fecha: r.fecha,
+    hora: (r.hora || '').slice(0, 5), duracion: r.duracion, comentario: r.comentario
+  }));
+}
+
+async function fetchAuditoria() {
+  const { data, error } = await supabaseClient.from('auditoria').select('*').order('ts', { ascending: false });
+  if (error) { console.error(error); mostrarErrorConexion(error); return []; }
+  return data.map(r => ({ id: r.id, ts: r.ts, accion: r.accion, entidad: r.entidad, detalle: r.detalle }));
+}
+
+function mostrarErrorConexion(error) {
+  if (document.getElementById('supabase-error-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'supabase-error-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:10px 20px;text-align:center;font-size:0.85rem;z-index:9999;';
+  banner.textContent = '⚠️ No se pudo conectar con Supabase. Revisa SUPABASE_URL / SUPABASE_ANON_KEY y las políticas RLS. Detalle: ' + (error?.message || '');
+  document.body.prepend(banner);
+}
+
+// ===== HELPERS =====
+function fmt(n) {
+  return '$' + (n || 0).toLocaleString('es-CL');
+}
+
+function fmtFecha(d) {
+  if (!d) return '-';
+  const [y,m,dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+
+function getProfe(id) { return db.profes.find(p => p.id == id) || {}; }
+function getCliente(id) { return db.clientes.find(c => c.id == id) || {}; }
+function getContrato(id) { return db.contratos.find(c => c.id == id) || {}; }
+function getSesionesByContrato(cid) { return db.sesiones.filter(s => s.contratoId == cid); }
+function valorSesion(contrato) { return Math.round(contrato.monto / contrato.sesionesTotal); }
+// Valor neto que recibe el profesor por sesión, tras el % de cobro del gimnasio
+function valorProfesor(contrato) {
+  const bruto = valorSesion(contrato);
+  const pct = contrato.comisionGym || 0;
+  return Math.round(bruto * (1 - pct / 100));
+}
+// Monto que retiene el gimnasio por sesión
+function valorGimnasio(contrato) {
+  return valorSesion(contrato) - valorProfesor(contrato);
+}
+
+function fmtFechaHora(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const yy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+}
+
+// ===== AUDITORÍA (registro interno, solo lectura — inmutable a nivel de base de datos) =====
+async function logAudit(accion, entidad, detalle) {
+  const { data, error } = await supabaseClient.from('auditoria').insert({ accion, entidad, detalle }).select().single();
+  if (error) { console.error('Error guardando auditoría:', error); return; }
+  db.auditoria.unshift({ id: data.id, ts: data.ts, accion: data.accion, entidad: data.entidad, detalle: data.detalle });
+}
+
+// ===== NAVIGATION =====
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[['dashboard','contratos','sesiones','calendario','pagos','config','auditoria'].indexOf(name)].classList.add('active');
+  
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'contratos') renderContratos();
+  if (name === 'sesiones') { populateFilters(); renderSesiones(); }
+  if (name === 'calendario') renderCalendario();
+  if (name === 'pagos') populatePagoFilters();
+  if (name === 'config') renderConfig();
+  if (name === 'auditoria') { populateAuditFilters(); renderAuditoria(); }
+}
+
+// ===== DASHBOARD =====
+function renderDashboard() {
+  const totalContratos = db.contratos.filter(c => c.activo).length;
+  const totalSesiones = db.sesiones.length;
+  const totalProfes = db.profes.length;
+  const totalClientes = db.clientes.length;
+
+  const hoy = new Date().toISOString().slice(0,10);
+  const mesStart = hoy.slice(0,7) + '-01';
+  const sesionesMes = db.sesiones.filter(s => s.fecha >= mesStart && s.fecha <= hoy).length;
+
+  // Ingresos mes (suma valor/sesión * sesiones del mes)
+  let ingresosMes = 0;
+  db.sesiones.filter(s => s.fecha >= mesStart && s.fecha <= hoy).forEach(s => {
+    const c = getContrato(s.contratoId);
+    if (c.id) ingresosMes += valorSesion(c);
+  });
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card" data-icon="📋"><div class="stat-value">${totalContratos}</div><div class="stat-label">Contratos Activos</div></div>
+    <div class="stat-card" data-icon="🏋️"><div class="stat-value">${sesionesMes}</div><div class="stat-label">Sesiones este mes</div></div>
+    <div class="stat-card" data-icon="💰"><div class="stat-value">${fmt(ingresosMes)}</div><div class="stat-label">Ingresos del mes</div></div>
+    <div class="stat-card" data-icon="👟"><div class="stat-value">${totalProfes}</div><div class="stat-label">Profesores</div></div>
+    <div class="stat-card" data-icon="🏃"><div class="stat-value">${totalClientes}</div><div class="stat-label">Clientes</div></div>
+    <div class="stat-card" data-icon="📅"><div class="stat-value">${totalSesiones}</div><div class="stat-label">Sesiones Totales</div></div>
+  `;
+
+  const cont = document.getElementById('dashboard-contratos');
+  const activos = db.contratos.filter(c => c.activo);
+  if (!activos.length) { cont.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Sin contratos activos</div></div>'; return; }
+
+  cont.innerHTML = activos.map(c => {
+    const profe = getProfe(c.profeId);
+    const cliente = getCliente(c.clienteId);
+    const sesRealizadas = getSesionesByContrato(c.id).length;
+    const pct = Math.min(100, Math.round(sesRealizadas / c.sesionesTotal * 100));
+    const color = pct >= 100 ? 'done' : pct >= 70 ? 'warn' : 'active';
+    const fillClass = pct >= 100 ? 'done' : pct >= 70 ? 'warning' : '';
+    return `
+      <div class="card">
+        <div class="card-label">Contrato activo</div>
+        <div class="card-title">${cliente.nombre || '?'}</div>
+        <div class="card-meta">
+          <span>👟 Profe: <strong>${profe.nombre || '?'}</strong></span>
+          <span>💰 <strong>${fmt(c.monto)}</strong> · ${fmt(valorSesion(c))}/sesión (neto profe ${fmt(valorProfesor(c))}, gym ${c.comisionGym || 0}%)</span>
+          <span>📅 ${fmtFecha(c.inicio)} → ${fmtFecha(c.fin)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted);margin-bottom:4px;">
+          <span>Sesiones</span><span class="badge badge-${color}">${sesRealizadas}/${c.sesionesTotal}</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+        <div class="card-actions" style="margin-top:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="openModalSesionConContrato(${c.id})">+ Sesión</button>
+          ${c.comprobante ? `<a class="comp-badge" onclick="verComprobante(${c.id})">📎 Comprobante</a>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== CONTRATOS =====
+function renderContratos() {
+  const tbody = document.getElementById('tabla-contratos');
+  if (!db.contratos.length) {
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay contratos. Agrega el primero.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = db.contratos.map(c => {
+    const profe = getProfe(c.profeId);
+    const cliente = getCliente(c.clienteId);
+    const sesRealizadas = getSesionesByContrato(c.id).length;
+    const pct = Math.min(100, Math.round(sesRealizadas / c.sesionesTotal * 100));
+    const fillClass = pct >= 100 ? 'done' : pct >= 70 ? 'warning' : '';
+    const estado = pct >= 100 ? '<span class="badge badge-done">Completado</span>' : '<span class="badge badge-active">Activo</span>';
+    const compCell = c.comprobante
+      ? `<a class="comp-badge" onclick="verComprobante(${c.id})">📎 Ver</a>`
+      : `<span class="no-comp">Sin archivo</span>`;
+    return `
+      <tr>
+        <td><strong>${cliente.nombre || '—'}</strong></td>
+        <td>${profe.nombre || '—'}</td>
+        <td style="font-family:'DM Mono',monospace;">${sesRealizadas}/${c.sesionesTotal}</td>
+        <td style="min-width:120px;">
+          <div class="progress-bar" style="margin:0;"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+          <span style="font-size:0.7rem;color:var(--muted);">${pct}%</span>
+        </td>
+        <td style="font-family:'DM Mono',monospace;">${fmt(c.monto)}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--accent);">${fmt(valorSesion(c))}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--accent2);">${c.comisionGym || 0}%</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--success);">${fmt(valorProfesor(c))}</td>
+        <td>${compCell}</td>
+        <td>${estado}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="openModalSesionConContrato(${c.id})">+ Sesión</button>
+            <button class="btn btn-danger" onclick="eliminarContrato(${c.id})">✕</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openModalContrato() {
+  populateSelectsProfesClientes();
+  document.getElementById('c-sesiones').value = '';
+  document.getElementById('c-monto').value = '';
+  document.getElementById('c-comision').value = '';
+  document.getElementById('c-neto-preview').value = '';
+  document.getElementById('c-inicio').value = new Date().toISOString().slice(0,10);
+  document.getElementById('c-fin').value = '';
+  document.getElementById('c-notas').value = '';
+  pendingFile = null;
+  pendingFileData = null;
+  document.getElementById('c-comprobante').value = '';
+  document.getElementById('upload-area').classList.remove('has-file');
+  document.getElementById('upload-placeholder').style.display = 'flex';
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('upload-preview').innerHTML = '';
+  document.getElementById('modal-contrato-title').textContent = 'NUEVO CONTRATO';
+  openModal('modal-contrato');
+}
+
+async function guardarContrato() {
+  const clienteId = +document.getElementById('c-cliente').value;
+  const profeId = +document.getElementById('c-profe').value;
+  const sesionesTotal = +document.getElementById('c-sesiones').value;
+  const monto = +document.getElementById('c-monto').value;
+  const comisionGym = Math.min(100, Math.max(0, +document.getElementById('c-comision').value || 0));
+  if (!clienteId || !profeId || !sesionesTotal || !monto) { alert('Completa los campos obligatorios.'); return; }
+
+  const btn = document.getElementById('btn-guardar-contrato');
+  btn.disabled = true;
+  btn.textContent = pendingFile ? 'Subiendo comprobante...' : 'Guardando...';
+
+  let comprobanteData = null;
+  if (pendingFile) {
+    comprobanteData = await subirComprobante(pendingFile);
+    if (!comprobanteData) {
+      alert('No se pudo subir el comprobante. Verifica el bucket "comprobantes" en Supabase Storage e intenta de nuevo.');
+      btn.disabled = false; btn.textContent = 'Guardar Contrato';
+      return;
+    }
+  }
+
+  const inicio = document.getElementById('c-inicio').value || null;
+  const fin = document.getElementById('c-fin').value || null;
+  const notas = document.getElementById('c-notas').value;
+
+  const { data, error } = await supabaseClient.from('contratos').insert({
+    cliente_id: clienteId, profe_id: profeId, sesiones_total: sesionesTotal, monto, comision_gym: comisionGym,
+    inicio, fin, notas,
+    comprobante_url: comprobanteData ? comprobanteData.url : null,
+    comprobante_nombre: comprobanteData ? comprobanteData.name : null,
+    comprobante_tipo: comprobanteData ? comprobanteData.type : null,
+    activo: true
+  }).select().single();
+
+  btn.disabled = false;
+  btn.textContent = 'Guardar Contrato';
+
+  if (error) { alert('Error al guardar el contrato: ' + error.message); return; }
+
+  db.contratos.push({
+    id: data.id, clienteId, profeId, sesionesTotal, monto, comisionGym,
+    inicio: data.inicio, fin: data.fin, notas: data.notas,
+    comprobante: comprobanteData, activo: true
+  });
+
+  const cliente = getCliente(clienteId), profe = getProfe(profeId);
+  await logAudit('crear', 'contrato', `Contrato creado: ${cliente.nombre || '—'} / ${profe.nombre || '—'} — ${sesionesTotal} sesiones, ${fmt(monto)}, comisión gimnasio ${comisionGym}%`);
+
+  closeModal('modal-contrato');
+  renderContratos();
+  renderDashboard();
+}
+
+function actualizarPreviewComision() {
+  const sesiones = +document.getElementById('c-sesiones').value;
+  const monto = +document.getElementById('c-monto').value;
+  const comision = +document.getElementById('c-comision').value || 0;
+  const preview = document.getElementById('c-neto-preview');
+  if (!sesiones || !monto) { preview.value = ''; return; }
+  const bruto = Math.round(monto / sesiones);
+  const neto = Math.round(bruto * (1 - comision / 100));
+  preview.value = `${fmt(neto)} (bruto ${fmt(bruto)}, gimnasio se queda ${fmt(bruto - neto)})`;
+}
+
+async function eliminarContrato(id) {
+  const c = getContrato(id);
+  if (!confirm('¿Eliminar este contrato? También se eliminarán sus sesiones.')) return;
+  const cliente = getCliente(c.clienteId), profe = getProfe(c.profeId);
+  const sesionesAsociadas = getSesionesByContrato(id).length;
+
+  const { error } = await supabaseClient.from('contratos').delete().eq('id', id);
+  if (error) { alert('Error al eliminar el contrato: ' + error.message); return; }
+
+  db.contratos = db.contratos.filter(x => x.id !== id);
+  db.sesiones = db.sesiones.filter(s => s.contratoId !== id); // ya se eliminaron en cascada en la BD
+
+  await logAudit('eliminar', 'contrato', `Contrato eliminado: ${cliente.nombre || '—'} / ${profe.nombre || '—'} (y ${sesionesAsociadas} sesión(es) asociada(s))`);
+  renderContratos();
+  renderDashboard();
+}
+
+// ===== SESIONES =====
+function populateFilters() {
+  const selProfe = document.getElementById('filter-profe-ses');
+  const selCliente = document.getElementById('filter-cliente-ses');
+  selProfe.innerHTML = '<option value="">Todos</option>' + db.profes.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  selCliente.innerHTML = '<option value="">Todos</option>' + db.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+}
+
+function clearFiltersSes() {
+  document.getElementById('filter-desde').value = '';
+  document.getElementById('filter-hasta').value = '';
+  document.getElementById('filter-profe-ses').value = '';
+  document.getElementById('filter-cliente-ses').value = '';
+  renderSesiones();
+}
+
+function renderSesiones() {
+  const desde = document.getElementById('filter-desde').value;
+  const hasta = document.getElementById('filter-hasta').value;
+  const profeId = document.getElementById('filter-profe-ses').value;
+  const clienteId = document.getElementById('filter-cliente-ses').value;
+
+  let sesiones = [...db.sesiones];
+  if (desde) sesiones = sesiones.filter(s => s.fecha >= desde);
+  if (hasta) sesiones = sesiones.filter(s => s.fecha <= hasta);
+  if (profeId) sesiones = sesiones.filter(s => {
+    const c = getContrato(s.contratoId);
+    return c.profeId == profeId;
+  });
+  if (clienteId) sesiones = sesiones.filter(s => {
+    const c = getContrato(s.contratoId);
+    return c.clienteId == clienteId;
+  });
+
+  sesiones.sort((a,b) => (b.fecha+b.hora).localeCompare(a.fecha+a.hora));
+
+  const tbody = document.getElementById('tabla-sesiones');
+  if (!sesiones.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="empty-icon">🏋️</div><div class="empty-text">No hay sesiones en este período.</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = sesiones.map(s => {
+    const c = getContrato(s.contratoId);
+    const profe = getProfe(c.profeId);
+    const cliente = getCliente(c.clienteId);
+    const vs = c.id ? valorSesion(c) : 0;
+    return `
+      <tr>
+        <td>${fmtFecha(s.fecha)}</td>
+        <td style="font-family:'DM Mono',monospace;">${s.hora || '-'}</td>
+        <td><strong>${cliente.nombre || '—'}</strong></td>
+        <td>${profe.nombre || '—'}</td>
+        <td style="font-family:'DM Mono',monospace;color:var(--accent);">${fmt(vs)}</td>
+        <td style="max-width:220px;color:var(--muted);font-size:0.82rem;">${s.comentario || '—'}</td>
+        <td>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="openModalSesionEdit(${s.id})">✏️</button>
+            <button class="btn btn-danger" onclick="eliminarSesion(${s.id})">✕</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+let editingSesionId = null;
+
+function openModalSesion() {
+  editingSesionId = null;
+  populateSesionContrato();
+  document.getElementById('s-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('s-hora').value = '';
+  document.getElementById('s-duracion').value = '60';
+  document.getElementById('s-comentario').value = '';
+  document.getElementById('contrato-info').style.display = 'none';
+  document.getElementById('modal-sesion-title').textContent = 'REGISTRAR SESIÓN';
+  document.getElementById('btn-guardar-sesion').textContent = 'Registrar';
+  openModal('modal-sesion');
+}
+
+function openModalSesionConContrato(cid) {
+  openModalSesion();
+  setTimeout(() => {
+    document.getElementById('s-contrato').value = cid;
+    actualizarInfoContrato();
+  }, 50);
+}
+
+function openModalSesionEdit(id) {
+  const s = db.sesiones.find(x => x.id === id);
+  if (!s) return;
+  editingSesionId = id;
+  populateSesionContrato();
+  document.getElementById('s-contrato').value = s.contratoId;
+  actualizarInfoContrato();
+  document.getElementById('s-fecha').value = s.fecha;
+  document.getElementById('s-hora').value = s.hora;
+  document.getElementById('s-duracion').value = s.duracion;
+  document.getElementById('s-comentario').value = s.comentario;
+  document.getElementById('modal-sesion-title').textContent = 'EDITAR SESIÓN';
+  document.getElementById('btn-guardar-sesion').textContent = 'Guardar Cambios';
+  openModal('modal-sesion');
+}
+
+function populateSesionContrato() {
+  const sel = document.getElementById('s-contrato');
+  sel.innerHTML = '<option value="">— Selecciona contrato —</option>' + db.contratos.map(c => {
+    const profe = getProfe(c.profeId);
+    const cliente = getCliente(c.clienteId);
+    const ses = getSesionesByContrato(c.id).length;
+    return `<option value="${c.id}">${cliente.nombre} / ${profe.nombre} (${ses}/${c.sesionesTotal} ses.)</option>`;
+  }).join('');
+}
+
+function actualizarInfoContrato() {
+  const cid = +document.getElementById('s-contrato').value;
+  const info = document.getElementById('contrato-info');
+  if (!cid) { info.style.display = 'none'; return; }
+  const c = getContrato(cid);
+  const sesR = getSesionesByContrato(cid).length;
+  const vs = valorSesion(c);
+  const pct = Math.min(100, Math.round(sesR / c.sesionesTotal * 100));
+  document.getElementById('contrato-info-text').innerHTML = `
+    <span>📊 Sesiones realizadas: <strong>${sesR}/${c.sesionesTotal}</strong> (${pct}%)</span>
+    <span>💰 Valor por sesión: <strong style="color:var(--accent)">${fmt(vs)}</strong> · Comisión gimnasio: <strong>${c.comisionGym || 0}%</strong> · Neto profesor: <strong style="color:var(--success)">${fmt(valorProfesor(c))}</strong></span>
+    ${sesR >= c.sesionesTotal ? '<span style="color:var(--accent2);">⚠️ Contrato completado</span>' : ''}
+  `;
+  info.style.display = 'block';
+}
+
+async function guardarSesion() {
+  const contratoId = +document.getElementById('s-contrato').value;
+  const fecha = document.getElementById('s-fecha').value;
+  const hora = document.getElementById('s-hora').value;
+  const duracion = +document.getElementById('s-duracion').value || 60;
+  const comentario = document.getElementById('s-comentario').value;
+  if (!contratoId || !fecha || !hora) { alert('Completa contrato, fecha y hora.'); return; }
+
+  const c = getContrato(contratoId);
+  const cliente = getCliente(c.clienteId);
+  const profe = getProfe(c.profeId);
+  const btn = document.getElementById('btn-guardar-sesion');
+  btn.disabled = true;
+
+  if (editingSesionId) {
+    const s = db.sesiones.find(x => x.id === editingSesionId);
+    if (!s) { editingSesionId = null; btn.disabled = false; return; }
+    const cambios = [];
+    if (s.contratoId !== contratoId) cambios.push('Contrato reasignado');
+    if (s.fecha !== fecha) cambios.push(`Fecha: ${fmtFecha(s.fecha)} → ${fmtFecha(fecha)}`);
+    if (s.hora !== hora) cambios.push(`Hora: ${s.hora} → ${hora}`);
+    if (s.duracion !== duracion) cambios.push(`Duración: ${s.duracion} → ${duracion} min`);
+    if ((s.comentario || '') !== comentario) cambios.push('Comentario modificado');
+
+    const { error } = await supabaseClient.from('sesiones').update({
+      contrato_id: contratoId, fecha, hora, duracion, comentario
+    }).eq('id', editingSesionId);
+
+    btn.disabled = false;
+    if (error) { alert('Error al guardar los cambios: ' + error.message); return; }
+
+    if (cambios.length) {
+      await logAudit('editar', 'sesion', `Sesión de ${cliente.nombre || '—'} / ${profe.nombre || '—'} (${fmtFecha(s.fecha)} ${s.hora}) — ${cambios.join('; ')}`);
+    }
+    s.contratoId = contratoId; s.fecha = fecha; s.hora = hora; s.duracion = duracion; s.comentario = comentario;
+    editingSesionId = null;
+  } else {
+    const { data, error } = await supabaseClient.from('sesiones').insert({
+      contrato_id: contratoId, fecha, hora, duracion, comentario
+    }).select().single();
+
+    btn.disabled = false;
+    if (error) { alert('Error al registrar la sesión: ' + error.message); return; }
+
+    db.sesiones.push({ id: data.id, contratoId, fecha, hora, duracion, comentario });
+    await logAudit('crear', 'sesion', `Sesión registrada: ${cliente.nombre || '—'} / ${profe.nombre || '—'} — ${fmtFecha(fecha)} ${hora}`);
+  }
+
+  closeModal('modal-sesion');
+  renderSesiones();
+  renderDashboard();
+}
+
+async function eliminarSesion(id) {
+  const s = db.sesiones.find(x => x.id === id);
+  if (!s) return;
+  if (!confirm('¿Eliminar esta sesión?')) return;
+  const c = getContrato(s.contratoId);
+  const cliente = getCliente(c.clienteId);
+  const profe = getProfe(c.profeId);
+
+  const { error } = await supabaseClient.from('sesiones').delete().eq('id', id);
+  if (error) { alert('Error al eliminar la sesión: ' + error.message); return; }
+
+  db.sesiones = db.sesiones.filter(x => x.id !== id);
+  await logAudit('eliminar', 'sesion', `Sesión eliminada: ${cliente.nombre || '—'} / ${profe.nombre || '—'} — ${fmtFecha(s.fecha)} ${s.hora}`);
+  renderSesiones();
+  renderDashboard();
+}
+
+// ===== PAGOS =====
+function populatePagoFilters() {
+  const sel = document.getElementById('pago-profe-filter');
+  sel.innerHTML = '<option value="">Todos</option>' + db.profes.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  // default: mes actual
+  const hoy = new Date().toISOString().slice(0,10);
+  const mesStart = hoy.slice(0,7) + '-01';
+  document.getElementById('pago-desde').value = mesStart;
+  document.getElementById('pago-hasta').value = hoy;
+}
+
+function calcularPagos() {
+  const desde = document.getElementById('pago-desde').value;
+  const hasta = document.getElementById('pago-hasta').value;
+  const profeFilter = document.getElementById('pago-profe-filter').value;
+
+  if (!desde || !hasta) { alert('Selecciona rango de fechas.'); return; }
+
+  // Agrupar sesiones por profe
+  const agrupado = {};
+  db.sesiones.filter(s => s.fecha >= desde && s.fecha <= hasta).forEach(s => {
+    const c = getContrato(s.contratoId);
+    if (!c.id) return;
+    if (profeFilter && c.profeId != profeFilter) return;
+
+    const profe = getProfe(c.profeId);
+    const cliente = getCliente(c.clienteId);
+    if (!agrupado[c.profeId]) agrupado[c.profeId] = { profe, detalles: [], totalBruto: 0, totalGym: 0, totalNeto: 0 };
+
+    const bruto = valorSesion(c);
+    const neto = valorProfesor(c);
+    const gymCut = bruto - neto;
+    agrupado[c.profeId].totalBruto += bruto;
+    agrupado[c.profeId].totalGym += gymCut;
+    agrupado[c.profeId].totalNeto += neto;
+    agrupado[c.profeId].detalles.push({
+      cliente: cliente.nombre,
+      fecha: s.fecha,
+      hora: s.hora,
+      bruto, neto, gymCut,
+      comisionPct: c.comisionGym || 0,
+      comentario: s.comentario
+    });
+  });
+
+  const contenedor = document.getElementById('pagos-resultado');
+  const profesConDatos = Object.values(agrupado);
+
+  if (!profesConDatos.length) {
+    contenedor.innerHTML = '<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">Sin sesiones en el período seleccionado.</div></div>';
+    return;
+  }
+
+  const totalGeneralNeto = profesConDatos.reduce((s, p) => s + p.totalNeto, 0);
+  const totalGeneralGym = profesConDatos.reduce((s, p) => s + p.totalGym, 0);
+
+  contenedor.innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div>
+        <span style="font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;">Total a pagar a profesores (neto) — ${fmtFecha(desde)} → ${fmtFecha(hasta)}</span>
+        <span style="font-size:0.75rem;color:var(--muted);">Retenido por el gimnasio en el período: <strong style="color:var(--accent2)">${fmt(totalGeneralGym)}</strong></span>
+      </div>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);letter-spacing:1px;">${fmt(totalGeneralNeto)}</span>
+    </div>
+    ${profesConDatos.map(({ profe, detalles, totalNeto, totalGym, totalBruto }) => `
+      <div class="pago-card">
+        <div class="pago-header">
+          <div>
+            <div class="pago-profe">👟 ${profe.nombre}</div>
+            <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${detalles.length} sesiones · bruto ${fmt(totalBruto)} · comisión gimnasio ${fmt(totalGym)}</div>
+          </div>
+          <div class="pago-total">${fmt(totalNeto)}</div>
+        </div>
+        <div class="pago-body">
+          ${detalles.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(d => `
+            <div class="pago-row">
+              <span class="pago-row-client">
+                <strong style="color:var(--text)">${d.cliente}</strong>
+                <br><span style="font-size:0.76rem;">${fmtFecha(d.fecha)} ${d.hora} ${d.comentario ? '· ' + d.comentario.slice(0,50) + (d.comentario.length > 50 ? '…':'') : ''}</span>
+              </span>
+              <span class="pago-row-monto">${fmt(d.neto)}<br><span style="font-size:0.68rem;color:var(--muted);font-weight:400;">bruto ${fmt(d.bruto)} · -${d.comisionPct}%</span></span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ===== CONFIG =====
+function renderConfig() {
+  renderProfes();
+  renderClientes();
+}
+
+function renderProfes() {
+  const tbody = document.getElementById('tabla-profes');
+  if (!db.profes.length) { tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px;">Sin profesores</td></tr>'; return; }
+  tbody.innerHTML = db.profes.map(p => `
+    <tr>
+      <td><strong>${p.nombre}</strong></td>
+      <td style="color:var(--muted);font-size:0.82rem;">${p.email || '—'}</td>
+      <td><button class="btn btn-danger" onclick="eliminarProfe(${p.id})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderClientes() {
+  const tbody = document.getElementById('tabla-clientes');
+  if (!db.clientes.length) { tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px;">Sin clientes</td></tr>'; return; }
+  tbody.innerHTML = db.clientes.map(c => `
+    <tr>
+      <td><strong>${c.nombre}</strong></td>
+      <td style="color:var(--muted);font-size:0.82rem;">${c.email || '—'}</td>
+      <td><button class="btn btn-danger" onclick="eliminarCliente(${c.id})">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+function openModalProfe() {
+  document.getElementById('p-nombre').value = '';
+  document.getElementById('p-email').value = '';
+  document.getElementById('p-telefono').value = '';
+  openModal('modal-profe');
+}
+
+async function guardarProfe() {
+  const nombre = document.getElementById('p-nombre').value.trim();
+  if (!nombre) { alert('Ingresa el nombre.'); return; }
+  const email = document.getElementById('p-email').value.trim();
+  const telefono = document.getElementById('p-telefono').value.trim();
+
+  const { data, error } = await supabaseClient.from('profes').insert({ nombre, email, telefono }).select().single();
+  if (error) { alert('Error al guardar el profesor: ' + error.message); return; }
+
+  db.profes.push({ id: data.id, nombre, email, telefono });
+  await logAudit('crear', 'profe', `Profesor agregado: ${nombre}`);
+  closeModal('modal-profe');
+  renderProfes();
+}
+
+async function eliminarProfe(id) {
+  if (db.contratos.find(c => c.profeId == id)) { alert('Este profesor tiene contratos. Elimínalos primero.'); return; }
+  const p = getProfe(id);
+  if (!confirm('¿Eliminar profesor?')) return;
+
+  const { error } = await supabaseClient.from('profes').delete().eq('id', id);
+  if (error) { alert('Error al eliminar el profesor: ' + error.message); return; }
+
+  db.profes = db.profes.filter(x => x.id !== id);
+  await logAudit('eliminar', 'profe', `Profesor eliminado: ${p.nombre || '—'}`);
+  renderProfes();
+}
+
+function openModalCliente() {
+  document.getElementById('cl-nombre').value = '';
+  document.getElementById('cl-email').value = '';
+  document.getElementById('cl-telefono').value = '';
+  openModal('modal-cliente');
+}
+
+async function guardarCliente() {
+  const nombre = document.getElementById('cl-nombre').value.trim();
+  if (!nombre) { alert('Ingresa el nombre.'); return; }
+  const email = document.getElementById('cl-email').value.trim();
+  const telefono = document.getElementById('cl-telefono').value.trim();
+
+  const { data, error } = await supabaseClient.from('clientes').insert({ nombre, email, telefono }).select().single();
+  if (error) { alert('Error al guardar el cliente: ' + error.message); return; }
+
+  db.clientes.push({ id: data.id, nombre, email, telefono });
+  await logAudit('crear', 'cliente', `Cliente agregado: ${nombre}`);
+  closeModal('modal-cliente');
+  renderClientes();
+}
+
+async function eliminarCliente(id) {
+  if (db.contratos.find(c => c.clienteId == id)) { alert('Este cliente tiene contratos. Elimínalos primero.'); return; }
+  const cl = getCliente(id);
+  if (!confirm('¿Eliminar cliente?')) return;
+
+  const { error } = await supabaseClient.from('clientes').delete().eq('id', id);
+  if (error) { alert('Error al eliminar el cliente: ' + error.message); return; }
+
+  db.clientes = db.clientes.filter(x => x.id !== id);
+  await logAudit('eliminar', 'cliente', `Cliente eliminado: ${cl.nombre || '—'}`);
+  renderClientes();
+}
+
+// ===== AUDITORÍA (render) =====
+function populateAuditFilters() {
+  // No requiere poblar selects dinámicos, se dejan los valores actuales si ya fueron seteados
+}
+
+function clearFiltersAudit() {
+  document.getElementById('audit-desde').value = '';
+  document.getElementById('audit-hasta').value = '';
+  document.getElementById('audit-accion').value = '';
+  document.getElementById('audit-entidad').value = '';
+  renderAuditoria();
+}
+
+const ACCION_LABEL = { crear: 'Creación', editar: 'Edición', eliminar: 'Eliminación' };
+const ACCION_BADGE = { crear: 'active', editar: 'warn', eliminar: 'danger' };
+const ENTIDAD_LABEL = { sesion: '🏋️ Sesión', contrato: '📋 Contrato', profe: '👟 Profesor', cliente: '🏃 Cliente' };
+
+function renderAuditoria() {
+  const desde = document.getElementById('audit-desde').value;
+  const hasta = document.getElementById('audit-hasta').value;
+  const accion = document.getElementById('audit-accion').value;
+  const entidad = document.getElementById('audit-entidad').value;
+
+  let registros = [...db.auditoria];
+  if (desde) registros = registros.filter(a => a.ts.slice(0,10) >= desde);
+  if (hasta) registros = registros.filter(a => a.ts.slice(0,10) <= hasta);
+  if (accion) registros = registros.filter(a => a.accion === accion);
+  if (entidad) registros = registros.filter(a => a.entidad === entidad);
+  registros.sort((a, b) => b.ts.localeCompare(a.ts));
+
+  const tbody = document.getElementById('tabla-auditoria');
+  if (!registros.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-icon">🔒</div><div class="empty-text">Sin movimientos registrados todavía.</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = registros.map(a => `
+    <tr>
+      <td style="font-family:'DM Mono',monospace;white-space:nowrap;">${fmtFechaHora(a.ts)}</td>
+      <td><span class="badge badge-${ACCION_BADGE[a.accion] || 'active'}">${ACCION_LABEL[a.accion] || a.accion}</span></td>
+      <td style="white-space:nowrap;">${ENTIDAD_LABEL[a.entidad] || a.entidad}</td>
+      <td style="color:var(--muted);font-size:0.82rem;">${a.detalle}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== CALENDARIO SEMANAL =====
+const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const HORAS_CAL = Array.from({ length: 16 }, (_, i) => i + 6); // 06 .. 21 (bloques de 1h, último 21:00-22:00)
+
+function toLocalISO(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function fmtFechaCorta(d) {
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay(); // 0=Dom..6=Sáb
+  const diff = (day === 0 ? -6 : 1) - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+
+let calendarWeekStart = getMonday(new Date());
+
+function cambiarSemana(delta) {
+  calendarWeekStart.setDate(calendarWeekStart.getDate() + delta * 7);
+  renderCalendario();
+}
+
+function irHoy() {
+  calendarWeekStart = getMonday(new Date());
+  renderCalendario();
+}
+
+function irAFecha() {
+  const val = document.getElementById('cal-fecha-jump').value;
+  if (!val) return;
+  const [y, m, d] = val.split('-').map(Number);
+  calendarWeekStart = getMonday(new Date(y, m - 1, d));
+  renderCalendario();
+}
+
+// Número de sesión (ej: 3) respecto al total contratado, según orden cronológico dentro del contrato
+function getSesionNumero(sesion) {
+  const lista = getSesionesByContrato(sesion.contratoId).slice().sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+  const idx = lista.findIndex(x => x.id === sesion.id);
+  return idx === -1 ? '?' : idx + 1;
+}
+
+function renderCalendario() {
+  const weekDates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(calendarWeekStart);
+    d.setDate(d.getDate() + i);
+    weekDates.push(d);
+  }
+  const isoSemana = weekDates.map(toLocalISO);
+  document.getElementById('cal-rango').textContent =
+    `${fmtFechaCorta(weekDates[0])} — ${fmtFechaCorta(weekDates[6])} ${weekDates[6].getFullYear()}`;
+  document.getElementById('cal-fecha-jump').value = isoSemana[0];
+
+  // Matriz [día][bloque horario] = [sesiones]
+  const matriz = Array.from({ length: 7 }, () => Array.from({ length: HORAS_CAL.length }, () => []));
+  db.sesiones.forEach(s => {
+    const dayIdx = isoSemana.indexOf(s.fecha);
+    if (dayIdx === -1) return;
+    let hora = parseInt((s.hora || '6').split(':')[0], 10);
+    if (isNaN(hora)) hora = 6;
+    hora = Math.min(21, Math.max(6, hora));
+    matriz[dayIdx][hora - 6].push(s);
+  });
+
+  document.getElementById('cal-thead').innerHTML =
+    `<tr><th class="cal-day-head">Día</th>${HORAS_CAL.map(h => `<th>${String(h).padStart(2,'0')}:00</th>`).join('')}</tr>`;
+
+  const hoyIso = toLocalISO(new Date());
+  document.getElementById('tabla-calendario').innerHTML = weekDates.map((d, dayIdx) => {
+    const iso = isoSemana[dayIdx];
+    const celdas = HORAS_CAL.map((h, hourIdx) => {
+      const sesionesCelda = matriz[dayIdx][hourIdx];
+      if (!sesionesCelda.length) return `<td class="cal-cell"></td>`;
+      return `<td class="cal-cell">${sesionesCelda.map(s => {
+        const c = getContrato(s.contratoId);
+        const cliente = getCliente(c.clienteId);
+        const numero = getSesionNumero(s);
+        return `<div class="cal-session" onclick="openModalSesionEdit(${s.id})" title="${cliente.nombre || '—'} · ${s.hora} · ${s.comentario || ''}">
+          <span class="cal-session-name">${cliente.nombre || '—'}</span>
+          <span class="cal-session-num">${numero}/${c.sesionesTotal ?? '?'}</span>
+        </div>`;
+      }).join('')}</td>`;
+    }).join('');
+    return `<tr class="${iso === hoyIso ? 'cal-today' : ''}">
+      <td class="cal-day-head">${DIAS_SEMANA[dayIdx]}<span class="cal-day-date">${fmtFechaCorta(d)}</span></td>
+      ${celdas}
+    </tr>`;
+  }).join('');
+}
+
+// ===== ACCESO PROTEGIDO A PAGOS =====
+const PAGOS_PASSWORD = 'pagos1234';
+let pagosDesbloqueado = false;
+
+function intentarAccederPagos() {
+  if (pagosDesbloqueado) { showView('pagos'); return; }
+  document.getElementById('pagos-pass-input').value = '';
+  document.getElementById('pagos-pass-error').style.display = 'none';
+  openModal('modal-pagos-pass');
+  setTimeout(() => document.getElementById('pagos-pass-input').focus(), 100);
+}
+
+function verificarPasswordPagos() {
+  const val = document.getElementById('pagos-pass-input').value;
+  if (val === PAGOS_PASSWORD) {
+    pagosDesbloqueado = true;
+    closeModal('modal-pagos-pass');
+    showView('pagos');
+  } else {
+    document.getElementById('pagos-pass-error').style.display = 'block';
+  }
+}
+
+// ===== MODAL UTILS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+function populateSelectsProfesClientes() {
+  document.getElementById('c-cliente').innerHTML = '<option value="">— Selecciona cliente —</option>' + db.clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+  document.getElementById('c-profe').innerHTML = '<option value="">— Selecciona profesor —</option>' + db.profes.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+}
+
+// ===== INIT =====
+async function iniciarApp() {
+  document.getElementById('dashboard-contratos').innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Cargando datos desde Supabase...</div></div>';
+  await cargarTodo();
+  renderDashboard();
+}
+iniciarApp();
+</script>
+</body>
+</html>
