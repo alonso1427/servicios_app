@@ -536,7 +536,16 @@
     <div class="filter-bar">
       <div class="form-group">
         <label class="form-label">Negocio</label>
-        <select class="form-control" id="r-negocio" onchange="renderResumen()"></select>
+        <details id="r-neg-box" style="position:relative;">
+          <summary class="form-control" id="r-neg-texto" style="cursor:pointer;list-style:none;min-width:210px;"></summary>
+          <div style="position:absolute;z-index:50;top:100%;left:0;min-width:240px;margin-top:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;">
+            <div style="display:flex;gap:6px;margin-bottom:6px;">
+              <button class="btn btn-secondary btn-sm" onclick="selTodosNeg(true)">Todos</button>
+              <button class="btn btn-secondary btn-sm" onclick="selTodosNeg(false)">Ninguno</button>
+            </div>
+            <div id="r-neg-lista"></div>
+          </div>
+        </details>
       </div>
       <div class="form-group">
         <label class="form-label">Año</label>
@@ -560,6 +569,13 @@
           <option value="total">Total del período</option>
           <option value="mes">Desglose por mes</option>
         </select>
+      </div>
+      <div class="form-group" id="r-toggle-grupo">
+        <label class="form-label">Categorías</label>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="expandirTodo(true)">Expandir todo</button>
+          <button class="btn btn-secondary btn-sm" onclick="expandirTodo(false)">Minimizar todo</button>
+        </div>
       </div>
     </div>
 
@@ -1023,8 +1039,27 @@ function renderMovimientos() {
 }
 
 // ===== RESUMEN =====
+let negSel = null;
+function onNegChange() {
+  negSel = new Set([...document.querySelectorAll('#r-neg-lista input:checked')].map(i => +i.value));
+  actualizarTextoNeg(); renderResumen();
+}
+function selTodosNeg(todos) {
+  negSel = todos ? new Set(db.negocios.map(n => n.id)) : new Set();
+  document.querySelectorAll('#r-neg-lista input').forEach(i => i.checked = todos);
+  actualizarTextoNeg(); renderResumen();
+}
+function actualizarTextoNeg() {
+  const n = negSel.size, tot = db.negocios.length;
+  document.getElementById('r-neg-texto').textContent = n === tot ? `Todos los negocios (${tot})` :
+    n === 0 ? 'Ninguno seleccionado' : n === 1 ? negNombre([...negSel][0]) : `${n} negocios seleccionados`;
+}
+document.addEventListener('click', e => { const d = document.getElementById('r-neg-box'); if (d && !d.contains(e.target)) d.open = false; });
 function populateFiltrosResumen() {
-  setSel('r-negocio', opts(db.negocios, '', 'id', x => x.nombre + (x.activo ? '' : ' (stand by)'), '<option value="">Todos los negocios (consolidado)</option>'));
+  if (!negSel) negSel = new Set(db.negocios.map(n => n.id));
+  document.getElementById('r-neg-lista').innerHTML = db.negocios.map(n =>
+    `<label class="check-row" style="padding:5px 4px"><input type="checkbox" value="${n.id}"${negSel.has(n.id) ? ' checked' : ''} onchange="onNegChange()"> ${esc(n.nombre)}${n.activo ? '' : ' (stand by)'}</label>`).join('');
+  actualizarTextoNeg();
   setSel('r-anio', opts(aniosDisponibles().map(a => ({ id: a, nombre: a }))));
   setSel('r-mes', '<option value="">Todo el año</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join(''));
 }
@@ -1043,40 +1078,42 @@ function sumar(movs, nCols, porMes, pred) {
 function calcularResumen(movs, porMes, vista) {
   const nCols = porMes ? 13 : 1;
   const filas = [];
-  const add = (cls, label, vals, sub) => filas.push({ cls, label, vals, sub });
+  const add = (cls, label, vals, extra) => filas.push({ cls, label, vals, ...extra });
   const resta = (a, b) => a.map((x, i) => x - b[i]);
   const tipo = (t, titulo) => {
+    const tipos = [].concat(t);
+    const sinDetalle = false;
     add('sum-section', titulo, null);
     let total = new Array(nCols).fill(0);
-    for (const c of db.categorias.filter(c => c.tipo === t)) {
+    for (const c of db.categorias.filter(c => tipos.includes(c.tipo))) {
       const v = sumar(movs, nCols, porMes, m => m.categoria_id === c.id);
       total = total.map((x, i) => x + v[i]);
+      if (sinDetalle) continue;
       const subs = db.subcategorias.filter(s => s.categoria_id === c.id);
       const filasSub = subs.map(s => ({ n: s.nombre, v: sumar(movs, nCols, porMes, m => m.subcategoria_id === s.id) }));
       const sinSub = sumar(movs, nCols, porMes, m => m.categoria_id === c.id && !m.subcategoria_id);
       if (sinSub.some(x => x)) filasSub.push({ n: '(sin subcategoría)', v: sinSub });
       if (vista === 'cat') add('sum-cat', c.nombre, v);
-      else if (vista === 'ambas') { add('sum-cat', c.nombre, v); filasSub.forEach(s => add('sum-sub', s.n, s.v)); }
-      else filasSub.forEach(s => add('sum-sub-flat', `${c.nombre} › ${s.n}`, s.v));
+      else if (vista === 'ambas') {
+        add('sum-cat', c.nombre, v, { key: 'c' + c.id, hasKids: filasSub.length > 0 });
+        filasSub.forEach(s => add('sum-sub', s.n, s.v, { parent: 'c' + c.id }));
+      } else filasSub.forEach(s => add('sum-sub-flat', `${c.nombre} › ${s.n}`, s.v));
     }
     return total;
   };
   const ing = tipo('ingreso', 'Ingresos'); add('sum-total', 'Total ingresos', ing);
-  const egr = tipo('egreso', 'Egresos operativos'); add('sum-total', 'Total egresos', egr);
+  const egr = tipo(['egreso', 'familia'], 'Egresos operativos'); add('sum-total', 'Total egresos', egr);
   const margen = resta(ing, egr); add('sum-result', 'Margen operativo', margen);
   const imp = tipo('impuesto', 'Impuestos'); add('sum-total', 'Total impuestos', imp);
-  const util = resta(margen, imp); add('sum-result', 'Utilidad', util);
-  const fam = tipo('familia', 'Gastos familia'); add('sum-total', 'Total gastos familia', fam);
-  const fin = resta(util, fam); add('sum-result', 'Utilidad final', fin);
+  const fin = resta(margen, imp); add('sum-result', 'Utilidad final', fin);
   return { filas, ing, egr, margen, fin };
 }
 
 function movsResumen() {
-  const neg = document.getElementById('r-negocio').value;
   const anio = document.getElementById('r-anio').value;
   const mes = document.getElementById('r-mes').value;
   return db.movimientos.filter(m =>
-    (!neg || m.negocio_id === +neg) && m.fecha.slice(0, 4) === anio &&
+    negSel.has(m.negocio_id) && m.fecha.slice(0, 4) === anio &&
     (!mes || +m.fecha.slice(5, 7) === +mes));
 }
 
@@ -1091,10 +1128,22 @@ function renderResumen() {
   document.getElementById('kpi-final').textContent = fmt(r.fin[last]);
   const heads = porMes ? [...MESES, 'Total'] : ['Total período'];
   document.getElementById('resumen-thead').innerHTML = '<tr><th>Concepto</th>' + heads.map(h => `<th style="text-align:right">${h}</th>`).join('') + '</tr>';
+  document.getElementById('r-toggle-grupo').style.display = vista === 'ambas' ? '' : 'none';
   document.getElementById('resumen-tbody').innerHTML = r.filas.map(f => {
+    if (f.parent && cerradas.has(f.parent)) return '';
     if (!f.vals) return `<tr class="${f.cls}"><td colspan="${heads.length + 1}">${esc(f.label)}</td></tr>`;
-    return `<tr class="${f.cls}"><td>${esc(f.label)}</td>` + f.vals.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${v ? fmt(v) : '—'}</td>`).join('') + '</tr>';
+    let label = esc(f.label);
+    if (f.hasKids) label = `<span style="cursor:pointer;user-select:none" onclick="toggleCat('${f.key}')">${cerradas.has(f.key) ? '▸' : '▾'} ${label}</span>`;
+    else if (f.key) label = `<span style="margin-left:14px">${label}</span>`;
+    return `<tr class="${f.cls}"><td>${label}</td>` + f.vals.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${v ? fmt(v) : '—'}</td>`).join('') + '</tr>';
   }).join('');
+}
+const cerradas = new Set();
+function toggleCat(key) { cerradas.has(key) ? cerradas.delete(key) : cerradas.add(key); renderResumen(); }
+function expandirTodo(abrir) {
+  cerradas.clear();
+  if (!abrir) db.categorias.forEach(c => cerradas.add('c' + c.id));
+  renderResumen();
 }
 
 function exportarResumenCSV() {
