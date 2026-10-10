@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinTrack — Control Financiero</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff4444;
+    --success: #4caf50;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: nowrap;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  header span {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+    flex-shrink: 0;
+  }
+  .nav-tabs {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active { background: var(--accent); color: #111; font-weight: 600; }
+
+  /* LAYOUT */
+  .main { max-width: 1400px; margin: 0 auto; padding: 32px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 1px;
+  }
+  .section-title span { color: var(--accent); }
+  .section-sub { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #111; }
+  .btn-primary:hover { background: #f4ff7a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #2a2a2a; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 0.75rem; padding: 6px 12px; }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-block { width: 100%; justify-content: center; }
+  .btn-sm { font-size: 0.72rem; padding: 6px 10px; }
+
+  /* CARDS / GRID */
+  .grid { display: grid; gap: 16px; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1000px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } .grid-3 { grid-template-columns: repeat(2,1fr);} }
+  @media (max-width: 640px) { .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.1rem; color: var(--accent); letter-spacing: 1px; }
+  .kpi-value.small { font-size: 1.6rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .form-row, .form-row-3 { grid-template-columns: 1fr; } }
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .form-control {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .form-control:disabled { opacity: 0.6; cursor: not-allowed; }
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; min-height: 70px; font-family: 'DM Sans', sans-serif; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th {
+    background: var(--surface2);
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th .sort-arrow { color: var(--accent); margin-left: 4px; }
+  td {
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-active { background: rgba(232,255,71,0.15); color: var(--accent); }
+  .badge-done   { background: rgba(76,175,80,0.15);  color: var(--success); }
+  .badge-warn   { background: rgba(255,107,53,0.15); color: var(--accent2); }
+  .badge-danger { background: rgba(255,68,68,0.15);  color: var(--danger); }
+
+  .comp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(76,175,80,0.15);
+    color: var(--success);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+  }
+  .comp-badge:hover { background: rgba(76,175,80,0.3); }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
+  .empty-text { font-size: 0.9rem; }
+
+  /* MODALS */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px; color: var(--accent); }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  #comp-viewer-content { text-align: center; }
+  #comp-viewer-content iframe { width: 100%; height: 500px; border-radius: 8px; border: none; }
+
+  /* UPLOAD */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: border 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: var(--accent); }
+  .upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 0.82rem; }
+  .upload-preview-img { max-width: 100%; max-height: 160px; border-radius: 8px; }
+  .upload-file-name { font-size: 0.8rem; color: var(--text); margin-top: 6px; word-break: break-all; }
+  .upload-clear { position: absolute; top: 8px; right: 8px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 0.7rem; }
+
+  /* PAGO CARD */
+  .pago-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .pago-header {
+    background: var(--surface2);
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pago-vendedor { font-weight: 600; font-size: 1rem; }
+  .pago-total { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); letter-spacing: 1px; }
+  .pago-body { padding: 6px 20px; }
+  .pago-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+  .pago-row:first-child { border-top: none; }
+  .pago-row-client { font-size: 0.85rem; }
+  .pago-row-monto { font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; text-align: right; }
+
+  /* BAR CHART (horizontal) */
+  .bar-list { display: flex; flex-direction: column; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 90px; gap: 12px; align-items: center; }
+  .bar-row-label { font-size: 0.82rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--surface2); border-radius: 6px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #c8e030); border-radius: 6px; transition: width 0.4s; }
+  .bar-row-value { font-family: 'DM Mono', monospace; font-size: 0.8rem; text-align: right; color: var(--muted); }
+
+  /* MONTHLY CHART (vertical) */
+  .month-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 4px 0; }
+  .month-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+  .month-bar { width: 100%; max-width: 36px; background: linear-gradient(180deg, var(--accent), #b8cf30); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.4s; }
+  .month-label { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; }
+  .month-value { font-size: 0.68rem; color: var(--text); font-family: 'DM Mono', monospace; }
+
+  @media (max-width: 600px) {
+    .main { padding: 16px; }
+    header { padding: 0 16px; height: auto; }
+    header h1 { font-size: 1.5rem; }
+    .nav-tab span { display: none; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  }
+
+  /* AUDITORIA */
+  .audit-notice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .audit-notice strong { color: var(--text); }
+
+  /* ===== FINTRACK: extras ===== */
+  .num { font-family: 'DM Mono', monospace; text-align: right; }
+  .neg { color: var(--danger); }
+  .pos { color: var(--success); }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* Tabla resumen */
+  .sum-table { min-width: 640px; }
+  .sum-table th { cursor: default; }
+  .sum-table th:hover { color: var(--muted); }
+  .sum-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); white-space: nowrap; }
+  .sum-table th:first-child { position: sticky; left: 0; z-index: 2; }
+  .sum-section td { background: var(--surface2) !important; color: var(--accent); font-weight: 600; font-size: 0.74rem; letter-spacing: 1px; text-transform: uppercase; }
+  .sum-cat td { font-weight: 600; }
+  .sum-sub td { color: var(--muted); font-size: 0.82rem; }
+  .sum-sub td:first-child { padding-left: 36px; }
+  .sum-sub-flat td { font-size: 0.85rem; }
+  .sum-total td { border-top: 2px solid var(--border); font-weight: 700; }
+  .sum-total td:first-child { background: var(--surface2); }
+  .sum-result td { background: rgba(232,255,71,0.08); color: var(--accent); font-weight: 700; border-top: 1px solid var(--accent); }
+  .sum-result td:first-child { background: #232610; }
+  .sum-result td.neg { color: var(--danger); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface2); border: 1px solid var(--accent); color: var(--text);
+    padding: 12px 18px; border-radius: 10px; z-index: 2000; font-size: 0.85rem;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .mov-summary { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+  .mov-summary strong { color: var(--text); font-family: 'DM Mono', monospace; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FinTrack</h1>
+  <span>Control Financiero</span>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('movimientos')">➕ <span>Movimientos</span></button>
+    <button class="nav-tab" onclick="showView('resumen')">📊 <span>Resumen</span></button>
+    <button class="nav-tab" onclick="showView('sueldos')">👷 <span>Sueldos</span></button>
+    <button class="nav-tab" onclick="showView('categorias')">🏷️ <span>Categorías</span></button>
+    <button class="nav-tab" onclick="showView('negocios')">🏪 <span>Negocios y Personal</span></button>
+    <button class="nav-tab" onclick="showView('auditoria')">🔒 <span>Auditoría</span></button>
+  </nav>
+</header>
+
+<div class="main">
+
+  <!-- ===================== MOVIMIENTOS ===================== -->
+  <div class="view active" id="view-movimientos">
+    <div class="section-header">
+      <div>
+        <div class="section-title">REGISTRO DE <span>MOVIMIENTOS</span></div>
+        <div class="section-sub">Ingresos, egresos, impuestos y gastos familia de cada negocio</div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:900px;margin-bottom:28px;">
+      <div class="card-title" id="mov-form-title">➕ Registrar movimiento</div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Negocio *</label>
+          <select class="form-control" id="m-negocio"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha *</label>
+          <input type="date" class="form-control" id="m-fecha">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría *</label>
+          <select class="form-control" id="m-categoria" onchange="onCategoriaChange()"></select>
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Subcategoría</label>
+          <select class="form-control" id="m-subcategoria"></select>
+        </div>
+        <div class="form-group" id="m-trabajador-group" style="display:none;">
+          <label class="form-label">Trabajador *</label>
+          <select class="form-control" id="m-trabajador"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto ($) *</label>
+          <input type="number" class="form-control" id="m-monto" min="0" placeholder="Ej: 250000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descripción</label>
+        <input type="text" class="form-control" id="m-descripcion" placeholder="Detalle opcional del movimiento...">
+      </div>
+      <div class="modal-footer" style="margin-top:4px;">
+        <button class="btn btn-secondary" id="btn-cancelar-edicion" style="display:none;" onclick="resetFormMov()">Cancelar edición</button>
+        <button class="btn btn-primary" id="btn-guardar-mov" onclick="guardarMovimiento()">Registrar</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="form-group">
+        <label class="form-label">Negocio</label>
+        <select class="form-control" id="ml-negocio" onchange="renderMovimientos()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoría</label>
+        <select class="form-control" id="ml-categoria" onchange="renderMovimientos()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-control" id="ml-desde" onchange="renderMovimientos()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-control" id="ml-hasta" onchange="renderMovimientos()">
+      </div>
+      <button class="btn btn-secondary" onclick="limpiarFiltrosMov()">Limpiar</button>
+    </div>
+
+    <div class="mov-summary" id="ml-resumen"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Negocio</th><th>Tipo</th><th>Categoría</th><th>Subcategoría</th>
+            <th>Trabajador</th><th>Descripción</th><th style="text-align:right">Monto</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-movimientos"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== RESUMEN ===================== -->
+  <div class="view" id="view-resumen">
+    <div class="section-header">
+      <div>
+        <div class="section-title">RESUMEN <span>FINANCIERO</span></div>
+        <div class="section-sub">Ingresos, egresos, margen operativo, impuestos y utilidad final</div>
+      </div>
+      <button class="btn btn-secondary" onclick="exportarResumenCSV()">⬇ Exportar CSV</button>
+    </div>
+
+    <div class="filter-bar">
+      <div class="form-group">
+        <label class="form-label">Negocio</label>
+        <select class="form-control" id="r-negocio" onchange="renderResumen()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Año</label>
+        <select class="form-control" id="r-anio" onchange="renderResumen()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mes</label>
+        <select class="form-control" id="r-mes" onchange="renderResumen()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Detalle</label>
+        <select class="form-control" id="r-vista" onchange="renderResumen()">
+          <option value="cat">Solo categorías</option>
+          <option value="sub">Solo subcategorías</option>
+          <option value="ambas">Categorías y subcategorías</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Presentación</label>
+        <select class="form-control" id="r-columnas" onchange="renderResumen()">
+          <option value="total">Total del período</option>
+          <option value="mes">Desglose por mes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:24px;">
+      <div class="kpi-card"><div class="kpi-label">Ingresos</div><div class="kpi-value" id="kpi-ingresos">$0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Egresos operativos</div><div class="kpi-value" id="kpi-egresos">$0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Margen operativo</div><div class="kpi-value" id="kpi-margen">$0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Utilidad final</div><div class="kpi-value" id="kpi-final">$0</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sum-table">
+        <thead id="resumen-thead"></thead>
+        <tbody id="resumen-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== SUELDOS ===================== -->
+  <div class="view" id="view-sueldos">
+    <div class="section-header">
+      <div>
+        <div class="section-title">ESTADÍSTICA DE <span>SUELDOS</span></div>
+        <div class="section-sub">Pagos por trabajador, mes a mes y total anual</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="form-group">
+        <label class="form-label">Negocio</label>
+        <select class="form-control" id="s-negocio" onchange="renderSueldos()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Año</label>
+        <select class="form-control" id="s-anio" onchange="renderSueldos()"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trabajador</label>
+        <select class="form-control" id="s-trabajador" onchange="renderSueldos()"></select>
+      </div>
+    </div>
+
+    <div class="grid grid-3" style="margin-bottom:24px;">
+      <div class="kpi-card"><div class="kpi-label">Total pagado en el año</div><div class="kpi-value" id="kpi-sueldos-total">$0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Trabajadores con pagos</div><div class="kpi-value" id="kpi-sueldos-n">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Promedio mensual (meses con pago)</div><div class="kpi-value small" id="kpi-sueldos-prom">$0</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sum-table">
+        <thead id="sueldos-thead"></thead>
+        <tbody id="sueldos-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===================== CATEGORÍAS ===================== -->
+  <div class="view" id="view-categorias">
+    <div class="section-header">
+      <div>
+        <div class="section-title">CATEGORÍAS Y <span>SUBCATEGORÍAS</span></div>
+        <div class="section-sub">Cada categoría pertenece a un tipo: ingreso, egreso, impuesto o gasto familia</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="align-items:start;">
+      <div class="card">
+        <div class="card-title">🏷️ Categorías
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openModalCategoria()">+ Nueva</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Tipo</th><th>Pide trabajador</th><th>Subcat.</th><th>Acciones</th></tr></thead>
+            <tbody id="tabla-categorias"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗂️ Subcategorías
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openModalSubcategoria()">+ Nueva</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Categoría</th><th>Acciones</th></tr></thead>
+            <tbody id="tabla-subcategorias"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== NEGOCIOS Y PERSONAL ===================== -->
+  <div class="view" id="view-negocios">
+    <div class="section-header">
+      <div>
+        <div class="section-title">NEGOCIOS Y <span>PERSONAL</span></div>
+        <div class="section-sub">Los negocios en stand by no aparecen al registrar movimientos hasta que los actives</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="align-items:start;">
+      <div class="card">
+        <div class="card-title">🏪 Negocios</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="tabla-negocios"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👷 Trabajadores
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openModalTrabajador()">+ Nuevo</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nombre</th><th>Acciones</th></tr></thead>
+            <tbody id="tabla-trabajadores"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== AUDITORÍA ===================== -->
+  <div class="view" id="view-auditoria">
+    <div class="section-header">
+      <div>
+        <div class="section-title">AUDITORÍA <span>INTERNA</span></div>
+        <div class="section-sub">Registro inmutable de todos los cambios realizados</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha y hora</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
+        <tbody id="tabla-auditoria"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal Categoría -->
+<div class="modal-overlay" id="modal-categoria">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">NUEVA CATEGORÍA</span>
+      <button class="modal-close" onclick="closeModal('modal-categoria')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre *</label>
+      <input type="text" class="form-control" id="cat-nombre" placeholder="Ej: Compras, Marketing...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tipo *</label>
+      <select class="form-control" id="cat-tipo">
+        <option value="ingreso">Ingreso</option>
+        <option value="egreso" selected>Egreso operativo</option>
+        <option value="impuesto">Impuesto</option>
+        <option value="familia">Gasto familia</option>
+      </select>
+    </div>
+    <label class="check-row"><input type="checkbox" id="cat-requiere"> Pedir trabajador al registrar (para sueldos)</label>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-categoria')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCategoria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Subcategoría -->
+<div class="modal-overlay" id="modal-subcategoria">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">NUEVA SUBCATEGORÍA</span>
+      <button class="modal-close" onclick="closeModal('modal-subcategoria')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categoría *</label>
+      <select class="form-control" id="sub-categoria"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre *</label>
+      <input type="text" class="form-control" id="sub-nombre" placeholder="Ej: Mercadería, Luz, Bonos...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-subcategoria')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarSubcategoria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Negocio -->
+<div class="modal-overlay" id="modal-negocio">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title">EDITAR NEGOCIO</span>
+      <button class="modal-close" onclick="closeModal('modal-negocio')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre *</label>
+      <input type="text" class="form-control" id="neg-nombre">
+    </div>
+    <label class="check-row"><input type="checkbox" id="neg-activo"> Negocio activo (desmarcar = stand by)</label>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-negocio')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNegocio()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Trabajador -->
+<div class="modal-overlay" id="modal-trabajador">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">NUEVO TRABAJADOR</span>
+      <button class="modal-close" onclick="closeModal('modal-trabajador')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nombre *</label>
+      <input type="text" class="form-control" id="trab-nombre" placeholder="Nombre completo">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-trabajador')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarTrabajador()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== SUPABASE =====
+const SUPABASE_URL = 'https://wyyvgomzrfjcqbdpfbyu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXZnb216cmZqY3FiZHBmYnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NzAzMzQsImV4cCI6MjEwMDE0NjMzNH0.spUP4vOXSpXnDR9QH9KrDX8sHNqvVf9LC1tsAjcUZOI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const db = { negocios: [], categorias: [], subcategorias: [], trabajadores: [], movimientos: [], auditoria: [] };
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const TIPOS = { ingreso: 'Ingreso', egreso: 'Egreso', impuesto: 'Impuesto', familia: 'Gasto familia' };
+let editandoMovId = null;
+
+// ===== CARGA =====
+function mostrarErrorConexion(error) {
+  if (document.getElementById('supabase-error-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'supabase-error-banner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:10px 20px;text-align:center;font-size:0.85rem;z-index:9999;';
+  banner.textContent = '⚠️ No se pudo conectar con Supabase. ¿Ejecutaste fintrack_schema.sql? Detalle: ' + (error?.message || '');
+  document.body.prepend(banner);
+}
+
+async function cargarTodo() {
+  const q = t => supabaseClient.from(t).select('*');
+  const [n, c, s, t, m, a] = await Promise.all([
+    q('fin_negocios').order('orden'),
+    q('fin_categorias').order('id'),
+    q('fin_subcategorias').order('nombre'),
+    q('fin_trabajadores').order('nombre'),
+    q('fin_movimientos').order('fecha', { ascending: false }).order('id', { ascending: false }).limit(20000),
+    q('fin_auditoria').order('id', { ascending: false }).limit(500)
+  ]);
+  for (const r of [n, c, s, t, m, a]) if (r.error) throw r.error;
+  db.negocios = n.data; db.categorias = c.data; db.subcategorias = s.data;
+  db.trabajadores = t.data; db.movimientos = m.data; db.auditoria = a.data;
+}
+
+async function logAudit(accion, entidad, detalle) {
+  const { data, error } = await supabaseClient.from('fin_auditoria').insert({ accion, entidad, detalle }).select().single();
+  if (error) { console.error('Error auditoría:', error); return; }
+  db.auditoria.unshift(data);
+}
+
+// ===== HELPERS =====
+const fmt = n => (n < 0 ? '-$' : '$') + Math.abs(n || 0).toLocaleString('es-CL');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function hoyISO() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function fmtFecha(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}-${m}-${y}`; }
+function fmtFechaHora(ts) { return new Date(ts).toLocaleString('es-CL'); }
+const getNeg = id => db.negocios.find(x => x.id === id);
+const getCat = id => db.categorias.find(x => x.id === id);
+const getSub = id => db.subcategorias.find(x => x.id === id);
+const getTrab = id => db.trabajadores.find(x => x.id === id);
+const negNombre = id => getNeg(id)?.nombre || '—';
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function opts(list, sel, valueKey = 'id', labelFn = x => x.nombre, extra = '') {
+  return extra + list.map(x => `<option value="${x[valueKey]}"${String(x[valueKey]) === String(sel) ? ' selected' : ''}>${esc(labelFn(x))}</option>`).join('');
+}
+function setSel(id, html, keep = true) {
+  const el = document.getElementById(id);
+  const prev = el.value;
+  el.innerHTML = html;
+  if (keep && prev && [...el.options].some(o => o.value === prev)) el.value = prev;
+}
+function aniosDisponibles() {
+  const set = new Set([new Date().getFullYear()]);
+  db.movimientos.forEach(m => set.add(+m.fecha.slice(0, 4)));
+  return [...set].sort((a, b) => b - a);
+}
+
+// ===== NAVEGACIÓN =====
+const VISTAS = ['movimientos', 'resumen', 'sueldos', 'categorias', 'negocios', 'auditoria'];
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[VISTAS.indexOf(name)].classList.add('active');
+  if (name === 'movimientos') { populateFormMov(); populateFiltrosMov(); renderMovimientos(); }
+  if (name === 'resumen') { populateFiltrosResumen(); renderResumen(); }
+  if (name === 'sueldos') { populateFiltrosSueldos(); renderSueldos(); }
+  if (name === 'categorias') renderCategorias();
+  if (name === 'negocios') renderNegocios();
+  if (name === 'auditoria') renderAuditoria();
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ===== MOVIMIENTOS =====
+function populateFormMov() {
+  setSel('m-negocio', opts(db.negocios.filter(n => n.activo), document.getElementById('m-negocio').value));
+  const catHtml = ['ingreso', 'egreso', 'impuesto', 'familia'].map(t =>
+    `<optgroup label="${TIPOS[t]}">` + opts(db.categorias.filter(c => c.tipo === t)) + '</optgroup>').join('');
+  setSel('m-categoria', catHtml);
+  if (!document.getElementById('m-fecha').value) document.getElementById('m-fecha').value = hoyISO();
+  onCategoriaChange();
+}
+function onCategoriaChange(subSel) {
+  const catId = +document.getElementById('m-categoria').value;
+  const cat = getCat(catId);
+  const subs = db.subcategorias.filter(s => s.categoria_id === catId);
+  document.getElementById('m-subcategoria').innerHTML = '<option value="">— Sin subcategoría —</option>' + opts(subs, subSel);
+  const req = !!cat?.requiere_trabajador;
+  document.getElementById('m-trabajador-group').style.display = req ? '' : 'none';
+  if (req) setSel('m-trabajador', '<option value="">— Selecciona —</option>' + opts(db.trabajadores));
+}
+
+function resetFormMov() {
+  editandoMovId = null;
+  document.getElementById('mov-form-title').textContent = '➕ Registrar movimiento';
+  document.getElementById('btn-guardar-mov').textContent = 'Registrar';
+  document.getElementById('btn-cancelar-edicion').style.display = 'none';
+  document.getElementById('m-monto').value = '';
+  document.getElementById('m-descripcion').value = '';
+  document.getElementById('m-trabajador').value = '';
+  document.getElementById('m-subcategoria').value = '';
+}
+
+async function guardarMovimiento() {
+  const negocio_id = +document.getElementById('m-negocio').value;
+  const fecha = document.getElementById('m-fecha').value;
+  const categoria_id = +document.getElementById('m-categoria').value;
+  const subId = document.getElementById('m-subcategoria').value;
+  const cat = getCat(categoria_id);
+  const trabId = document.getElementById('m-trabajador').value;
+  const monto = parseFloat(document.getElementById('m-monto').value);
+  const descripcion = document.getElementById('m-descripcion').value.trim();
+  if (!negocio_id || !fecha || !categoria_id || isNaN(monto) || monto < 0) { alert('Completa negocio, fecha, categoría y un monto válido.'); return; }
+  if (cat.requiere_trabajador && !trabId) { alert('Esta categoría requiere seleccionar un trabajador.'); return; }
+  const row = {
+    negocio_id, fecha, categoria_id, monto, descripcion: descripcion || null,
+    subcategoria_id: subId ? +subId : null,
+    trabajador_id: cat.requiere_trabajador && trabId ? +trabId : null
+  };
+  const detalle = `${negNombre(negocio_id)} · ${cat.nombre}${subId ? ' › ' + getSub(+subId).nombre : ''}${row.trabajador_id ? ' · ' + getTrab(row.trabajador_id).nombre : ''} · ${fmt(monto)} · ${fmtFecha(fecha)}`;
+  if (editandoMovId) {
+    const { data, error } = await supabaseClient.from('fin_movimientos').update(row).eq('id', editandoMovId).select().single();
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    const i = db.movimientos.findIndex(m => m.id === editandoMovId);
+    db.movimientos[i] = data;
+    await logAudit('editar', 'movimiento', 'Movimiento editado: ' + detalle);
+    toast('Movimiento actualizado');
+  } else {
+    const { data, error } = await supabaseClient.from('fin_movimientos').insert(row).select().single();
+    if (error) { alert('Error al guardar: ' + error.message); return; }
+    db.movimientos.unshift(data);
+    await logAudit('crear', 'movimiento', 'Movimiento creado: ' + detalle);
+    toast('Movimiento registrado');
+  }
+  resetFormMov();
+  populateFiltrosMov();
+  renderMovimientos();
+}
+
+function editarMovimiento(id) {
+  const m = db.movimientos.find(x => x.id === id);
+  if (!m) return;
+  editandoMovId = id;
+  populateFormMov();
+  // si el negocio está en stand by, agregarlo temporalmente
+  if (![...document.getElementById('m-negocio').options].some(o => +o.value === m.negocio_id)) {
+    document.getElementById('m-negocio').insertAdjacentHTML('beforeend', `<option value="${m.negocio_id}">${esc(negNombre(m.negocio_id))}</option>`);
+  }
+  document.getElementById('m-negocio').value = m.negocio_id;
+  document.getElementById('m-fecha').value = m.fecha;
+  document.getElementById('m-categoria').value = m.categoria_id;
+  onCategoriaChange(m.subcategoria_id);
+  if (m.trabajador_id) document.getElementById('m-trabajador').value = m.trabajador_id;
+  document.getElementById('m-monto').value = m.monto;
+  document.getElementById('m-descripcion').value = m.descripcion || '';
+  document.getElementById('mov-form-title').textContent = '✏️ Editando movimiento';
+  document.getElementById('btn-guardar-mov').textContent = 'Guardar cambios';
+  document.getElementById('btn-cancelar-edicion').style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function eliminarMovimiento(id) {
+  const m = db.movimientos.find(x => x.id === id);
+  if (!m || !confirm('¿Eliminar este movimiento?')) return;
+  const { error } = await supabaseClient.from('fin_movimientos').delete().eq('id', id);
+  if (error) { alert('Error al eliminar: ' + error.message); return; }
+  db.movimientos = db.movimientos.filter(x => x.id !== id);
+  await logAudit('eliminar', 'movimiento', `Movimiento eliminado: ${negNombre(m.negocio_id)} · ${getCat(m.categoria_id)?.nombre} · ${fmt(m.monto)} · ${fmtFecha(m.fecha)}`);
+  if (editandoMovId === id) resetFormMov();
+  renderMovimientos();
+  toast('Movimiento eliminado');
+}
+
+function populateFiltrosMov() {
+  setSel('ml-negocio', opts(db.negocios, '', 'id', x => x.nombre, '<option value="">Todos</option>'));
+  setSel('ml-categoria', opts(db.categorias, '', 'id', x => `${x.nombre} (${TIPOS[x.tipo]})`, '<option value="">Todas</option>'));
+}
+function limpiarFiltrosMov() {
+  ['ml-negocio', 'ml-categoria', 'ml-desde', 'ml-hasta'].forEach(i => document.getElementById(i).value = '');
+  renderMovimientos();
+}
+function renderMovimientos() {
+  const neg = document.getElementById('ml-negocio').value;
+  const cat = document.getElementById('ml-categoria').value;
+  const desde = document.getElementById('ml-desde').value;
+  const hasta = document.getElementById('ml-hasta').value;
+  const list = db.movimientos.filter(m =>
+    (!neg || m.negocio_id === +neg) && (!cat || m.categoria_id === +cat) &&
+    (!desde || m.fecha >= desde) && (!hasta || m.fecha <= hasta));
+  const tot = { ingreso: 0, egreso: 0, impuesto: 0, familia: 0 };
+  list.forEach(m => { const c = getCat(m.categoria_id); if (c) tot[c.tipo] += +m.monto; });
+  document.getElementById('ml-resumen').innerHTML =
+    `<span>${list.length} movimientos</span><span>Ingresos: <strong>${fmt(tot.ingreso)}</strong></span><span>Egresos: <strong>${fmt(tot.egreso)}</strong></span><span>Impuestos: <strong>${fmt(tot.impuesto)}</strong></span><span>Familia: <strong>${fmt(tot.familia)}</strong></span>`;
+  const shown = list.slice(0, 300);
+  document.getElementById('tabla-movimientos').innerHTML = shown.length ? shown.map(m => {
+    const c = getCat(m.categoria_id);
+    const cls = c?.tipo === 'ingreso' ? 'pos' : 'neg';
+    return `<tr>
+      <td>${fmtFecha(m.fecha)}</td><td>${esc(negNombre(m.negocio_id))}</td>
+      <td><span class="badge ${c?.tipo === 'ingreso' ? 'badge-done' : c?.tipo === 'familia' ? 'badge-warn' : 'badge-danger'}">${TIPOS[c?.tipo] || ''}</span></td>
+      <td>${esc(c?.nombre)}</td><td>${esc(getSub(m.subcategoria_id)?.nombre || '—')}</td>
+      <td>${esc(getTrab(m.trabajador_id)?.nombre || '—')}</td><td>${esc(m.descripcion || '')}</td>
+      <td class="num ${cls}">${fmt(+m.monto)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editarMovimiento(${m.id})">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="eliminarMovimiento(${m.id})">Eliminar</button></td></tr>`;
+  }).join('') + (list.length > 300 ? `<tr><td colspan="9" style="text-align:center;color:var(--muted)">Mostrando los 300 más recientes de ${list.length}. Usa los filtros para acotar.</td></tr>` : '')
+    : '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">Sin movimientos.</td></tr>';
+}
+
+// ===== RESUMEN =====
+function populateFiltrosResumen() {
+  setSel('r-negocio', opts(db.negocios, '', 'id', x => x.nombre + (x.activo ? '' : ' (stand by)'), '<option value="">Todos los negocios (consolidado)</option>'));
+  setSel('r-anio', opts(aniosDisponibles().map(a => ({ id: a, nombre: a }))));
+  setSel('r-mes', '<option value="">Todo el año</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m}</option>`).join(''));
+}
+
+// Calcula valores por columna para un filtro de movimientos.
+function sumar(movs, nCols, porMes, pred) {
+  const v = new Array(nCols).fill(0);
+  for (const m of movs) {
+    if (!pred(m)) continue;
+    if (porMes) { v[+m.fecha.slice(5, 7) - 1] += +m.monto; v[12] += +m.monto; }
+    else v[0] += +m.monto;
+  }
+  return v;
+}
+
+function calcularResumen(movs, porMes, vista) {
+  const nCols = porMes ? 13 : 1;
+  const filas = [];
+  const add = (cls, label, vals, sub) => filas.push({ cls, label, vals, sub });
+  const resta = (a, b) => a.map((x, i) => x - b[i]);
+  const tipo = (t, titulo) => {
+    add('sum-section', titulo, null);
+    let total = new Array(nCols).fill(0);
+    for (const c of db.categorias.filter(c => c.tipo === t)) {
+      const v = sumar(movs, nCols, porMes, m => m.categoria_id === c.id);
+      total = total.map((x, i) => x + v[i]);
+      const subs = db.subcategorias.filter(s => s.categoria_id === c.id);
+      const filasSub = subs.map(s => ({ n: s.nombre, v: sumar(movs, nCols, porMes, m => m.subcategoria_id === s.id) }));
+      const sinSub = sumar(movs, nCols, porMes, m => m.categoria_id === c.id && !m.subcategoria_id);
+      if (sinSub.some(x => x)) filasSub.push({ n: '(sin subcategoría)', v: sinSub });
+      if (vista === 'cat') add('sum-cat', c.nombre, v);
+      else if (vista === 'ambas') { add('sum-cat', c.nombre, v); filasSub.forEach(s => add('sum-sub', s.n, s.v)); }
+      else filasSub.forEach(s => add('sum-sub-flat', `${c.nombre} › ${s.n}`, s.v));
+    }
+    return total;
+  };
+  const ing = tipo('ingreso', 'Ingresos'); add('sum-total', 'Total ingresos', ing);
+  const egr = tipo('egreso', 'Egresos operativos'); add('sum-total', 'Total egresos', egr);
+  const margen = resta(ing, egr); add('sum-result', 'Margen operativo', margen);
+  const imp = tipo('impuesto', 'Impuestos'); add('sum-total', 'Total impuestos', imp);
+  const util = resta(margen, imp); add('sum-result', 'Utilidad', util);
+  const fam = tipo('familia', 'Gastos familia'); add('sum-total', 'Total gastos familia', fam);
+  const fin = resta(util, fam); add('sum-result', 'Utilidad final', fin);
+  return { filas, ing, egr, margen, fin };
+}
+
+function movsResumen() {
+  const neg = document.getElementById('r-negocio').value;
+  const anio = document.getElementById('r-anio').value;
+  const mes = document.getElementById('r-mes').value;
+  return db.movimientos.filter(m =>
+    (!neg || m.negocio_id === +neg) && m.fecha.slice(0, 4) === anio &&
+    (!mes || +m.fecha.slice(5, 7) === +mes));
+}
+
+function renderResumen() {
+  const vista = document.getElementById('r-vista').value;
+  const porMes = document.getElementById('r-columnas').value === 'mes';
+  const r = calcularResumen(movsResumen(), porMes, vista);
+  const last = porMes ? 12 : 0;
+  document.getElementById('kpi-ingresos').textContent = fmt(r.ing[last]);
+  document.getElementById('kpi-egresos').textContent = fmt(r.egr[last]);
+  document.getElementById('kpi-margen').textContent = fmt(r.margen[last]);
+  document.getElementById('kpi-final').textContent = fmt(r.fin[last]);
+  const heads = porMes ? [...MESES, 'Total'] : ['Total período'];
+  document.getElementById('resumen-thead').innerHTML = '<tr><th>Concepto</th>' + heads.map(h => `<th style="text-align:right">${h}</th>`).join('') + '</tr>';
+  document.getElementById('resumen-tbody').innerHTML = r.filas.map(f => {
+    if (!f.vals) return `<tr class="${f.cls}"><td colspan="${heads.length + 1}">${esc(f.label)}</td></tr>`;
+    return `<tr class="${f.cls}"><td>${esc(f.label)}</td>` + f.vals.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${v ? fmt(v) : '—'}</td>`).join('') + '</tr>';
+  }).join('');
+}
+
+function exportarResumenCSV() {
+  const porMes = document.getElementById('r-columnas').value === 'mes';
+  const r = calcularResumen(movsResumen(), porMes, document.getElementById('r-vista').value);
+  const heads = porMes ? [...MESES, 'Total'] : ['Total'];
+  const lines = [['Concepto', ...heads].join(';')];
+  r.filas.forEach(f => lines.push([`"${f.label}"`, ...(f.vals || heads.map(() => ''))].join(';')));
+  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `resumen_${document.getElementById('r-anio').value}.csv`;
+  a.click();
+}
+
+// ===== SUELDOS =====
+function populateFiltrosSueldos() {
+  setSel('s-negocio', opts(db.negocios, '', 'id', x => x.nombre, '<option value="">Todos los negocios</option>'));
+  setSel('s-anio', opts(aniosDisponibles().map(a => ({ id: a, nombre: a }))));
+  setSel('s-trabajador', opts(db.trabajadores, '', 'id', x => x.nombre, '<option value="">Todos los trabajadores</option>'));
+}
+function renderSueldos() {
+  const neg = document.getElementById('s-negocio').value;
+  const anio = document.getElementById('s-anio').value;
+  const trab = document.getElementById('s-trabajador').value;
+  const reqIds = new Set(db.categorias.filter(c => c.requiere_trabajador).map(c => c.id));
+  const movs = db.movimientos.filter(m => reqIds.has(m.categoria_id) && m.trabajador_id &&
+    (!neg || m.negocio_id === +neg) && m.fecha.slice(0, 4) === anio && (!trab || m.trabajador_id === +trab));
+  const porTrab = new Map();
+  movs.forEach(m => {
+    if (!porTrab.has(m.trabajador_id)) porTrab.set(m.trabajador_id, new Array(13).fill(0));
+    const v = porTrab.get(m.trabajador_id);
+    v[+m.fecha.slice(5, 7) - 1] += +m.monto; v[12] += +m.monto;
+  });
+  const totales = new Array(13).fill(0);
+  porTrab.forEach(v => v.forEach((x, i) => totales[i] += x));
+  const mesesConPago = totales.slice(0, 12).filter(x => x > 0).length;
+  document.getElementById('kpi-sueldos-total').textContent = fmt(totales[12]);
+  document.getElementById('kpi-sueldos-n').textContent = porTrab.size;
+  document.getElementById('kpi-sueldos-prom').textContent = fmt(mesesConPago ? Math.round(totales[12] / mesesConPago) : 0);
+  document.getElementById('sueldos-thead').innerHTML = '<tr><th>Trabajador</th>' + [...MESES, 'Total'].map(h => `<th style="text-align:right">${h}</th>`).join('') + '</tr>';
+  const filas = [...porTrab.entries()].sort((a, b) => b[1][12] - a[1][12]);
+  document.getElementById('sueldos-tbody').innerHTML = filas.length
+    ? filas.map(([id, v]) => `<tr class="sum-cat"><td>${esc(getTrab(id)?.nombre)}</td>` + v.map(x => `<td class="num">${x ? fmt(x) : '—'}</td>`).join('') + '</tr>').join('') +
+      '<tr class="sum-total"><td>Total</td>' + totales.map(x => `<td class="num">${x ? fmt(x) : '—'}</td>`).join('') + '</tr>'
+    : '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Sin pagos de sueldos en este período.</td></tr>';
+}
+
+// ===== CATEGORÍAS / SUBCATEGORÍAS =====
+function renderCategorias() {
+  document.getElementById('tabla-categorias').innerHTML = db.categorias.map(c => `<tr>
+    <td>${esc(c.nombre)}</td><td>${TIPOS[c.tipo]}</td><td>${c.requiere_trabajador ? 'Sí' : '—'}</td>
+    <td>${db.subcategorias.filter(s => s.categoria_id === c.id).length}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="eliminarCategoria(${c.id})">Eliminar</button></td></tr>`).join('');
+  document.getElementById('tabla-subcategorias').innerHTML = db.subcategorias.length ? db.subcategorias.map(s => `<tr>
+    <td>${esc(s.nombre)}</td><td>${esc(getCat(s.categoria_id)?.nombre)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="eliminarSubcategoria(${s.id})">Eliminar</button></td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:var(--muted)">Sin subcategorías.</td></tr>';
+}
+function openModalCategoria() {
+  document.getElementById('cat-nombre').value = '';
+  document.getElementById('cat-tipo').value = 'egreso';
+  document.getElementById('cat-requiere').checked = false;
+  openModal('modal-categoria');
+}
+async function guardarCategoria() {
+  const nombre = document.getElementById('cat-nombre').value.trim();
+  if (!nombre) { alert('Ingresa el nombre.'); return; }
+  const tipo = document.getElementById('cat-tipo').value;
+  const requiere_trabajador = document.getElementById('cat-requiere').checked;
+  const { data, error } = await supabaseClient.from('fin_categorias').insert({ nombre, tipo, requiere_trabajador }).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.categorias.push(data);
+  await logAudit('crear', 'categoria', `Categoría creada: ${nombre} (${TIPOS[tipo]})`);
+  closeModal('modal-categoria'); renderCategorias();
+}
+async function eliminarCategoria(id) {
+  const c = getCat(id);
+  if (db.movimientos.some(m => m.categoria_id === id)) { alert('No se puede eliminar: tiene movimientos asociados.'); return; }
+  if (!confirm(`¿Eliminar la categoría "${c.nombre}" y sus subcategorías?`)) return;
+  const { error } = await supabaseClient.from('fin_categorias').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  db.categorias = db.categorias.filter(x => x.id !== id);
+  db.subcategorias = db.subcategorias.filter(s => s.categoria_id !== id);
+  await logAudit('eliminar', 'categoria', 'Categoría eliminada: ' + c.nombre);
+  renderCategorias();
+}
+function openModalSubcategoria() {
+  if (!db.categorias.length) { alert('Primero crea una categoría.'); return; }
+  setSel('sub-categoria', opts(db.categorias, '', 'id', x => `${x.nombre} (${TIPOS[x.tipo]})`), false);
+  document.getElementById('sub-nombre').value = '';
+  openModal('modal-subcategoria');
+}
+async function guardarSubcategoria() {
+  const nombre = document.getElementById('sub-nombre').value.trim();
+  const categoria_id = +document.getElementById('sub-categoria').value;
+  if (!nombre || !categoria_id) { alert('Completa categoría y nombre.'); return; }
+  const { data, error } = await supabaseClient.from('fin_subcategorias').insert({ nombre, categoria_id }).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.subcategorias.push(data);
+  await logAudit('crear', 'subcategoria', `Subcategoría creada: ${getCat(categoria_id).nombre} › ${nombre}`);
+  closeModal('modal-subcategoria'); renderCategorias();
+}
+async function eliminarSubcategoria(id) {
+  const s = getSub(id);
+  if (db.movimientos.some(m => m.subcategoria_id === id)) { alert('No se puede eliminar: tiene movimientos asociados.'); return; }
+  if (!confirm(`¿Eliminar la subcategoría "${s.nombre}"?`)) return;
+  const { error } = await supabaseClient.from('fin_subcategorias').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  db.subcategorias = db.subcategorias.filter(x => x.id !== id);
+  await logAudit('eliminar', 'subcategoria', `Subcategoría eliminada: ${getCat(s.categoria_id)?.nombre} › ${s.nombre}`);
+  renderCategorias();
+}
+
+// ===== NEGOCIOS / TRABAJADORES =====
+let editandoNegId = null;
+function renderNegocios() {
+  document.getElementById('tabla-negocios').innerHTML = db.negocios.map(n => `<tr>
+    <td>${esc(n.nombre)}</td>
+    <td><span class="badge ${n.activo ? 'badge-done' : 'badge-warn'}">${n.activo ? 'Activo' : 'Stand by'}</span></td>
+    <td><button class="btn btn-secondary btn-sm" onclick="editarNegocio(${n.id})">Editar / activar</button></td></tr>`).join('');
+  document.getElementById('tabla-trabajadores').innerHTML = db.trabajadores.length ? db.trabajadores.map(t => `<tr>
+    <td>${esc(t.nombre)}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="eliminarTrabajador(${t.id})">Eliminar</button></td></tr>`).join('')
+    : '<tr><td colspan="2" style="text-align:center;color:var(--muted)">Sin trabajadores.</td></tr>';
+}
+function editarNegocio(id) {
+  const n = getNeg(id); editandoNegId = id;
+  document.getElementById('neg-nombre').value = n.nombre;
+  document.getElementById('neg-activo').checked = n.activo;
+  openModal('modal-negocio');
+}
+async function guardarNegocio() {
+  const nombre = document.getElementById('neg-nombre').value.trim();
+  const activo = document.getElementById('neg-activo').checked;
+  if (!nombre) { alert('Ingresa el nombre.'); return; }
+  const { data, error } = await supabaseClient.from('fin_negocios').update({ nombre, activo }).eq('id', editandoNegId).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  const i = db.negocios.findIndex(n => n.id === editandoNegId);
+  const antes = db.negocios[i];
+  db.negocios[i] = data;
+  await logAudit('editar', 'negocio', `Negocio "${antes.nombre}" → "${nombre}" (${activo ? 'activo' : 'stand by'})`);
+  closeModal('modal-negocio'); renderNegocios();
+}
+function openModalTrabajador() { document.getElementById('trab-nombre').value = ''; openModal('modal-trabajador'); }
+async function guardarTrabajador() {
+  const nombre = document.getElementById('trab-nombre').value.trim();
+  if (!nombre) { alert('Ingresa el nombre.'); return; }
+  const { data, error } = await supabaseClient.from('fin_trabajadores').insert({ nombre }).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.trabajadores.push(data);
+  db.trabajadores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  await logAudit('crear', 'trabajador', 'Trabajador creado: ' + nombre);
+  closeModal('modal-trabajador'); renderNegocios();
+}
+async function eliminarTrabajador(id) {
+  const t = getTrab(id);
+  if (db.movimientos.some(m => m.trabajador_id === id)) { alert('No se puede eliminar: tiene pagos registrados.'); return; }
+  if (!confirm(`¿Eliminar a "${t.nombre}"?`)) return;
+  const { error } = await supabaseClient.from('fin_trabajadores').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  db.trabajadores = db.trabajadores.filter(x => x.id !== id);
+  await logAudit('eliminar', 'trabajador', 'Trabajador eliminado: ' + t.nombre);
+  renderNegocios();
+}
+
+// ===== AUDITORÍA =====
+function renderAuditoria() {
+  document.getElementById('tabla-auditoria').innerHTML = db.auditoria.length ? db.auditoria.map(a => `<tr>
+    <td>${fmtFechaHora(a.ts)}</td><td>${esc(a.accion)}</td><td>${esc(a.entidad)}</td><td>${esc(a.detalle)}</td></tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Sin registros.</td></tr>';
+}
+
+// ===== INICIO =====
+async function iniciarApp() {
+  try { await cargarTodo(); } catch (e) { console.error(e); mostrarErrorConexion(e); return; }
+  showView('movimientos');
+}
+iniciarApp();
+</script>
+</body>
+</html>
