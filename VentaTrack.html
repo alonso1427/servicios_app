@@ -494,12 +494,12 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Comisión del vendedor (%)</label>
-          <input type="number" class="form-control" id="v-pct" min="0" max="100" step="0.01" oninput="calcComision()">
+          <label class="form-label">Comisión del vendedor ($)</label>
+          <input type="number" class="form-control" id="v-comision" min="0" oninput="calcComision()" placeholder="Monto en pesos">
         </div>
         <div class="form-group">
-          <label class="form-label">Valor comisión ($)</label>
-          <input type="text" class="form-control" id="v-comision" readonly>
+          <label class="form-label">Equivale a (% del valor)</label>
+          <input type="text" class="form-control" id="v-pct" readonly>
         </div>
       </div>
       <div class="form-group">
@@ -631,13 +631,13 @@
     <div class="section-header">
       <div>
         <div class="section-title">BASE DE DATOS DE <span>PLANES</span></div>
-        <div class="section-sub">Define el valor, período y comisión sugerida de cada plan</div>
+        <div class="section-sub">Define el valor, período y comisión (monto) sugerida de cada plan</div>
       </div>
       <button class="btn btn-primary" onclick="openModalPlan()">+ Nuevo plan</button>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Plan</th><th>Período</th><th style="text-align:right">Valor</th><th style="text-align:right">Comisión %</th><th style="text-align:right">Comisión $</th><th>Ventas</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Plan</th><th>Período</th><th style="text-align:right">Valor</th><th style="text-align:right">Comisión $</th><th style="text-align:right">Equivale a %</th><th>Ventas</th><th>Acciones</th></tr></thead>
         <tbody id="tabla-planes"></tbody>
       </table>
     </div>
@@ -689,8 +689,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Comisión sugerida del vendedor (%)</label>
-      <input type="number" class="form-control" id="plan-pct" min="0" max="100" step="0.01" value="0">
+      <label class="form-label">Comisión sugerida del vendedor ($)</label>
+      <input type="number" class="form-control" id="plan-comision" min="0" value="0">
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-plan')">Cancelar</button>
@@ -805,11 +805,12 @@ function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ===== PLANES =====
+const pctDe = (monto, valor) => valor > 0 ? Math.round(monto / valor * 10000) / 100 : 0;
 function renderPlanes() {
   document.getElementById('tabla-planes').innerHTML = db.planes.length ? db.planes.map(p => {
     const n = db.ventas.filter(v => v.plan_id === p.id).length;
     return `<tr><td>${esc(p.nombre)}</td><td>${PERIODOS[p.periodo]}</td>
-      <td class="num">${fmt(+p.valor)}</td><td class="num">${+p.comision_pct}%</td><td class="num">${fmt(+p.valor * +p.comision_pct / 100)}</td><td>${n}</td>
+      <td class="num">${fmt(+p.valor)}</td><td class="num">${fmt(+p.comision_valor)}</td><td class="num">${pctDe(+p.comision_valor, +p.valor)}%</td><td>${n}</td>
       <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="openModalPlan(${p.id})">Editar</button>
       <button class="btn btn-danger btn-sm" onclick="eliminarPlan(${p.id})">Eliminar</button></td></tr>`;
   }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Aún no hay planes. Crea el primero con "+ Nuevo plan".</td></tr>';
@@ -821,18 +822,18 @@ function openModalPlan(id) {
   document.getElementById('plan-nombre').value = p?.nombre || '';
   document.getElementById('plan-periodo').value = p?.periodo || 'mensual';
   document.getElementById('plan-valor').value = p ? p.valor : '';
-  document.getElementById('plan-pct').value = p ? p.comision_pct : 0;
+  document.getElementById('plan-comision').value = p ? p.comision_valor : 0;
   openModal('modal-plan');
 }
 async function guardarPlan() {
   const nombre = document.getElementById('plan-nombre').value.trim();
   const periodo = document.getElementById('plan-periodo').value;
   const valor = parseFloat(document.getElementById('plan-valor').value);
-  const comision_pct = parseFloat(document.getElementById('plan-pct').value) || 0;
+  const comision_valor = parseFloat(document.getElementById('plan-comision').value) || 0;
   if (!nombre || isNaN(valor) || valor < 0) { alert('Ingresa el nombre y un valor válido.'); return; }
-  if (comision_pct < 0 || comision_pct > 100) { alert('La comisión debe estar entre 0 y 100%.'); return; }
-  const row = { nombre, periodo, valor, comision_pct };
-  const det = `${nombre} · ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${comision_pct}%`;
+  if (comision_valor < 0 || comision_valor > valor) { alert('La comisión debe estar entre $0 y el valor del plan.'); return; }
+  const row = { nombre, periodo, valor, comision_valor, comision_pct: pctDe(comision_valor, valor) };
+  const det = `${nombre} · ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${fmt(comision_valor)}`;
   if (editandoPlanId) {
     const { data, error } = await supabaseClient.from('vta_planes').update(row).eq('id', editandoPlanId).select().single();
     if (error) { alert('Error: ' + error.message); return; }
@@ -875,13 +876,13 @@ function onPlanChange() {
   if (!p) return;
   document.getElementById('v-periodo').value = p.periodo;
   document.getElementById('v-valor').value = p.valor;
-  document.getElementById('v-pct').value = p.comision_pct;
+  document.getElementById('v-comision').value = p.comision_valor;
   calcComision();
 }
 function calcComision() {
   const valor = parseFloat(document.getElementById('v-valor').value) || 0;
-  const pct = parseFloat(document.getElementById('v-pct').value) || 0;
-  document.getElementById('v-comision').value = fmt(valor * pct / 100);
+  const com = parseFloat(document.getElementById('v-comision').value) || 0;
+  document.getElementById('v-pct').value = pctDe(com, valor) + '%';
 }
 function resetFormVenta() {
   editandoVentaId = null; pendingFile = null; pendingFileData = null;
@@ -953,26 +954,27 @@ async function guardarVenta() {
   const plan = getPlan(+document.getElementById('v-plan').value);
   const periodo = document.getElementById('v-periodo').value;
   const valor = parseFloat(document.getElementById('v-valor').value);
-  const pct = parseFloat(document.getElementById('v-pct').value) || 0;
+  const comision = parseFloat(document.getElementById('v-comision').value) || 0;
+  const pct = pctDe(comision, valor);
   if (!fecha || !nombre || !rutRaw || !plan || isNaN(valor) || valor < 0) { alert('Completa fecha, cliente, RUT, plan y valor.'); return; }
   if (!rutValido(rutRaw)) { alert('El RUT no es válido. Revisa el número y el dígito verificador.'); return; }
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { alert('El correo no es válido.'); return; }
   if (celular && limpiarRut(celular).replace(/\D/g, '').length < 8) { alert('El celular parece incompleto.'); return; }
-  if (pct < 0 || pct > 100) { alert('La comisión debe estar entre 0 y 100%.'); return; }
+  if (comision < 0 || comision > valor) { alert('La comisión debe estar entre $0 y el valor del plan.'); return; }
 
   const btn = document.getElementById('btn-guardar-venta');
   btn.disabled = true;
   try {
     const row = {
       fecha_venta: fecha, cliente_nombre: nombre, rut: formatearRut(rutRaw), correo: correo || null, celular: celular || null,
-      plan_id: plan.id, plan_nombre: plan.nombre, periodo, valor, comision_pct: pct, comision_valor: Math.round(valor * pct / 100)
+      plan_id: plan.id, plan_nombre: plan.nombre, periodo, valor, comision_pct: pct, comision_valor: comision
     };
     let viejaUrl = null;
     if (pendingFile) {
       const c = await subirComprobante(pendingFile);
       Object.assign(row, { comprobante_url: c.url, comprobante_nombre: c.nombre, comprobante_tipo: c.tipo });
     }
-    const det = `${nombre} (${row.rut}) · ${plan.nombre} ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${pct}% = ${fmt(row.comision_valor)} · ${fmtFecha(fecha)}`;
+    const det = `${nombre} (${row.rut}) · ${plan.nombre} ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${fmt(comision)} · ${fmtFecha(fecha)}`;
     if (editandoVentaId) {
       if (pendingFile) viejaUrl = db.ventas.find(v => v.id === editandoVentaId)?.comprobante_url;
       const { data, error } = await supabaseClient.from('vta_ventas').update(row).eq('id', editandoVentaId).select().single();
@@ -1009,7 +1011,7 @@ function editarVenta(id) {
   document.getElementById('v-celular').value = v.celular || '';
   document.getElementById('v-periodo').value = v.periodo;
   document.getElementById('v-valor').value = v.valor;
-  document.getElementById('v-pct').value = v.comision_pct;
+  document.getElementById('v-comision').value = v.comision_valor;
   calcComision();
   document.getElementById('v-comp-actual').textContent = v.comprobante_url ? '📎 Ya tiene comprobante. Adjunta otra imagen solo si quieres reemplazarlo.' : '';
   document.getElementById('v-form-title').textContent = '✏️ Editando venta';
