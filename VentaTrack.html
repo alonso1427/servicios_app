@@ -473,6 +473,19 @@
           <input type="tel" class="form-control" id="v-celular" placeholder="+56 9 1234 5678">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Tipo de cliente *</label>
+          <select class="form-control" id="v-tipo-cliente" onchange="onTipoClienteChange()">
+            <option value="nuevo">Nuevo</option>
+            <option value="antiguo">Antiguo</option>
+          </select>
+        </div>
+        <div class="form-group" id="v-ultimo-grupo" style="display:none;">
+          <label class="form-label">Fecha de último ingreso al gimnasio *</label>
+          <input type="date" class="form-control" id="v-ultimo-ingreso">
+        </div>
+      </div>
       <div class="form-row-3">
         <div class="form-group">
           <label class="form-label">Plan vendido *</label>
@@ -530,6 +543,12 @@
         <select class="form-control" id="vl-plan" onchange="renderVentas()"></select>
       </div>
       <div class="form-group">
+        <label class="form-label">Cliente</label>
+        <select class="form-control" id="vl-tipo" onchange="renderVentas()">
+          <option value="">Todos</option><option value="nuevo">Nuevos</option><option value="antiguo">Antiguos</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label class="form-label">Período</label>
         <select class="form-control" id="vl-periodo" onchange="renderVentas()">
           <option value="">Todos</option><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option>
@@ -552,7 +571,7 @@
       <table>
         <thead>
           <tr>
-            <th>Fecha</th><th>Cliente</th><th>RUT</th><th>Correo</th><th>Celular</th><th>Plan</th><th>Período</th>
+            <th>Fecha</th><th>Cliente</th><th>RUT</th><th>Correo</th><th>Celular</th><th>Tipo cliente</th><th>Último ingreso</th><th>Plan</th><th>Período</th>
             <th style="text-align:right">Valor</th><th style="text-align:right">Comisión %</th><th style="text-align:right">Comisión $</th>
             <th>Comprobante</th><th>Acciones</th>
           </tr>
@@ -605,7 +624,8 @@
       <div class="kpi-card"><div class="kpi-label">Clientes distintos</div><div class="kpi-value small" id="kpi-clientes">0</div></div>
     </div>
 
-    <div class="grid grid-2" style="margin-bottom:24px;align-items:start;">
+    <div class="grid grid-3" style="margin-bottom:24px;align-items:start;">
+      <div class="card"><div class="card-title">👥 Monto vendido por tipo de cliente</div><div class="bar-list" id="chart-tipo"></div></div>
       <div class="card"><div class="card-title">📆 Monto vendido por período del plan</div><div class="bar-list" id="chart-periodo"></div></div>
       <div class="card"><div class="card-title">🗂️ Monto vendido por plan</div><div class="bar-list" id="chart-plan"></div></div>
     </div>
@@ -724,6 +744,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 const BUCKET = 'vta-comprobantes';
 
 const db = { planes: [], ventas: [], auditoria: [] };
+const TIPOS_CLIENTE = { nuevo: 'Nuevo', antiguo: 'Antiguo' };
 const PERIODOS = { mensual: 'Mensual', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual' };
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 let editandoVentaId = null, editandoPlanId = null, pendingFile = null, pendingFileData = null;
@@ -861,6 +882,11 @@ async function eliminarPlan(id) {
 }
 
 // ===== FORMULARIO DE VENTA =====
+function onTipoClienteChange() {
+  const antiguo = document.getElementById('v-tipo-cliente').value === 'antiguo';
+  document.getElementById('v-ultimo-grupo').style.display = antiguo ? '' : 'none';
+  if (!antiguo) document.getElementById('v-ultimo-ingreso').value = '';
+}
 function populateFormVenta() {
   const sel = document.getElementById('v-plan');
   const prev = sel.value;
@@ -886,6 +912,7 @@ function calcComision() {
 }
 function resetFormVenta() {
   editandoVentaId = null; pendingFile = null; pendingFileData = null;
+  document.getElementById('v-tipo-cliente').value = 'nuevo'; onTipoClienteChange();
   ['v-nombre', 'v-rut', 'v-correo', 'v-celular', 'v-valor', 'v-pct', 'v-comision'].forEach(i => document.getElementById(i).value = '');
   document.getElementById('v-comprobante').value = '';
   document.getElementById('v-fecha').value = hoyISO();
@@ -951,12 +978,16 @@ async function guardarVenta() {
   const rutRaw = document.getElementById('v-rut').value.trim();
   const correo = document.getElementById('v-correo').value.trim();
   const celular = document.getElementById('v-celular').value.trim();
+  const tipoCliente = document.getElementById('v-tipo-cliente').value;
+  const ultimoIngreso = document.getElementById('v-ultimo-ingreso').value;
   const plan = getPlan(+document.getElementById('v-plan').value);
   const periodo = document.getElementById('v-periodo').value;
   const valor = parseFloat(document.getElementById('v-valor').value);
   const comision = parseFloat(document.getElementById('v-comision').value) || 0;
   const pct = pctDe(comision, valor);
   if (!fecha || !nombre || !rutRaw || !plan || isNaN(valor) || valor < 0) { alert('Completa fecha, cliente, RUT, plan y valor.'); return; }
+  if (tipoCliente === 'antiguo' && !ultimoIngreso) { alert('Indica la fecha del último ingreso del cliente antiguo.'); return; }
+  if (tipoCliente === 'antiguo' && ultimoIngreso > fecha) { alert('El último ingreso no puede ser posterior a la fecha de venta.'); return; }
   if (!rutValido(rutRaw)) { alert('El RUT no es válido. Revisa el número y el dígito verificador.'); return; }
   if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { alert('El correo no es válido.'); return; }
   if (celular && limpiarRut(celular).replace(/\D/g, '').length < 8) { alert('El celular parece incompleto.'); return; }
@@ -967,6 +998,7 @@ async function guardarVenta() {
   try {
     const row = {
       fecha_venta: fecha, cliente_nombre: nombre, rut: formatearRut(rutRaw), correo: correo || null, celular: celular || null,
+      tipo_cliente: tipoCliente, ultimo_ingreso: tipoCliente === 'antiguo' ? ultimoIngreso : null,
       plan_id: plan.id, plan_nombre: plan.nombre, periodo, valor, comision_pct: pct, comision_valor: comision
     };
     let viejaUrl = null;
@@ -974,7 +1006,7 @@ async function guardarVenta() {
       const c = await subirComprobante(pendingFile);
       Object.assign(row, { comprobante_url: c.url, comprobante_nombre: c.nombre, comprobante_tipo: c.tipo });
     }
-    const det = `${nombre} (${row.rut}) · ${plan.nombre} ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${fmt(comision)} · ${fmtFecha(fecha)}`;
+    const det = `${nombre} (${row.rut}) · cliente ${TIPOS_CLIENTE[tipoCliente].toLowerCase()}${row.ultimo_ingreso ? ' (último ingreso ' + fmtFecha(row.ultimo_ingreso) + ')' : ''} · ${plan.nombre} ${PERIODOS[periodo]} · ${fmt(valor)} · comisión ${fmt(comision)} · ${fmtFecha(fecha)}`;
     if (editandoVentaId) {
       if (pendingFile) viejaUrl = db.ventas.find(v => v.id === editandoVentaId)?.comprobante_url;
       const { data, error } = await supabaseClient.from('vta_ventas').update(row).eq('id', editandoVentaId).select().single();
@@ -1009,6 +1041,9 @@ function editarVenta(id) {
   document.getElementById('v-rut').value = v.rut;
   document.getElementById('v-correo').value = v.correo || '';
   document.getElementById('v-celular').value = v.celular || '';
+  document.getElementById('v-tipo-cliente').value = v.tipo_cliente || 'nuevo';
+  onTipoClienteChange();
+  document.getElementById('v-ultimo-ingreso').value = v.ultimo_ingreso || '';
   document.getElementById('v-periodo').value = v.periodo;
   document.getElementById('v-valor').value = v.valor;
   document.getElementById('v-comision').value = v.comision_valor;
@@ -1039,17 +1074,18 @@ function populateFiltrosVentas() {
   if (prev && nombres.includes(prev)) sel.value = prev;
 }
 function limpiarFiltrosVentas() {
-  ['vl-buscar', 'vl-plan', 'vl-periodo', 'vl-desde', 'vl-hasta'].forEach(i => document.getElementById(i).value = '');
+  ['vl-buscar', 'vl-tipo', 'vl-plan', 'vl-periodo', 'vl-desde', 'vl-hasta'].forEach(i => document.getElementById(i).value = '');
   renderVentas();
 }
 function ventasFiltradas() {
   const q = document.getElementById('vl-buscar').value.trim().toLowerCase();
   const qr = limpiarRut(q);
+  const tipo = document.getElementById('vl-tipo').value;
   const plan = document.getElementById('vl-plan').value, per = document.getElementById('vl-periodo').value;
   const d = document.getElementById('vl-desde').value, h = document.getElementById('vl-hasta').value;
   return db.ventas.filter(v =>
     (!q || v.cliente_nombre.toLowerCase().includes(q) || (qr && limpiarRut(v.rut).includes(qr))) &&
-    (!plan || v.plan_nombre === plan) && (!per || v.periodo === per) &&
+    (!tipo || (v.tipo_cliente || 'nuevo') === tipo) && (!plan || v.plan_nombre === plan) && (!per || v.periodo === per) &&
     (!d || v.fecha_venta >= d) && (!h || v.fecha_venta <= h));
 }
 function renderVentas() {
@@ -1060,19 +1096,19 @@ function renderVentas() {
   const shown = list.slice(0, 200);
   document.getElementById('tabla-ventas').innerHTML = shown.length ? shown.map(v => `<tr>
     <td>${fmtFecha(v.fecha_venta)}</td><td>${esc(v.cliente_nombre)}</td><td>${esc(v.rut)}</td>
-    <td>${esc(v.correo || '—')}</td><td>${esc(v.celular || '—')}</td><td>${esc(v.plan_nombre)}</td><td>${PERIODOS[v.periodo]}</td>
+    <td>${esc(v.correo || '—')}</td><td>${esc(v.celular || '—')}</td><td>${TIPOS_CLIENTE[v.tipo_cliente] || 'Nuevo'}</td><td>${v.ultimo_ingreso ? fmtFecha(v.ultimo_ingreso) : '—'}</td><td>${esc(v.plan_nombre)}</td><td>${PERIODOS[v.periodo]}</td>
     <td class="num">${fmt(+v.valor)}</td><td class="num">${+v.comision_pct}%</td><td class="num">${fmt(+v.comision_valor)}</td>
     <td>${v.comprobante_url ? `<a class="comp-badge" onclick="verComprobante(${v.id})">📎 Ver</a>` : '—'}</td>
     <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="editarVenta(${v.id})">Editar</button>
     <button class="btn btn-danger btn-sm" onclick="eliminarVenta(${v.id})">Eliminar</button></td></tr>`).join('') +
-    (list.length > 200 ? `<tr><td colspan="12" style="text-align:center;color:var(--muted)">Mostrando 200 de ${list.length}. Usa los filtros para acotar.</td></tr>` : '')
-    : '<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:24px">Sin ventas para mostrar.</td></tr>';
+    (list.length > 200 ? `<tr><td colspan="14" style="text-align:center;color:var(--muted)">Mostrando 200 de ${list.length}. Usa los filtros para acotar.</td></tr>` : '')
+    : '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">Sin ventas para mostrar.</td></tr>';
 }
 function exportarVentasCSV() {
   const list = ventasFiltradas();
-  const cab = ['Fecha', 'Cliente', 'RUT', 'Correo', 'Celular', 'Plan', 'Período', 'Valor', 'Comisión %', 'Comisión $'];
+  const cab = ['Fecha', 'Cliente', 'RUT', 'Correo', 'Celular', 'Tipo cliente', 'Último ingreso', 'Plan', 'Período', 'Valor', 'Comisión %', 'Comisión $'];
   const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
-  const lines = [cab.join(';'), ...list.map(v => [fmtFecha(v.fecha_venta), q(v.cliente_nombre), v.rut, q(v.correo), q(v.celular),
+  const lines = [cab.join(';'), ...list.map(v => [fmtFecha(v.fecha_venta), q(v.cliente_nombre), v.rut, q(v.correo), q(v.celular), TIPOS_CLIENTE[v.tipo_cliente] || 'Nuevo', v.ultimo_ingreso ? fmtFecha(v.ultimo_ingreso) : '',
     q(v.plan_nombre), PERIODOS[v.periodo], v.valor, v.comision_pct, v.comision_valor].join(';'))];
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
@@ -1128,6 +1164,7 @@ function renderResumen() {
   document.getElementById('kpi-clientes').textContent = new Set(list.map(v => limpiarRut(v.rut))).size;
 
   const suma = keyFn => { const m = {}; list.forEach(v => { const k = keyFn(v); m[k] = (m[k] || 0) + +v.valor; }); return Object.entries(m).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor); };
+  renderBarList('chart-tipo', suma(v => TIPOS_CLIENTE[v.tipo_cliente] || 'Nuevo'));
   renderBarList('chart-periodo', suma(v => PERIODOS[v.periodo]));
   renderBarList('chart-plan', suma(v => v.plan_nombre));
 
