@@ -453,6 +453,46 @@
   .tarea-foto { max-width: 100%; max-height: 52vh; border-radius: 8px; display: block; margin: 8px auto; cursor: zoom-in; }
   .tarea-info { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 0.86rem; margin-bottom: 12px; }
   .tarea-info dt { color: var(--muted); } .tarea-info dd { margin: 0; }
+
+  .cal-days-m { display: none; }
+  .btn-block-left { width: 100%; text-align: left; }
+  @media (max-width: 700px) {
+    header { flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
+    header h1 { font-size: 1.4rem; }
+    header > span { display: none; }
+    .nav-tabs { order: 3; flex: 1 1 100%; margin-left: 0; }
+    .user-chip { margin-left: auto; }
+    .user-chip #rol-texto { display: none; }
+    .main { padding: 14px 12px; }
+    .section-header { flex-direction: column; align-items: stretch; gap: 10px; }
+    .section-header .btn { width: 100%; }
+    .section-title { font-size: 1.7rem; }
+    .cal-toolbar { gap: 6px; }
+    .cal-toolbar .btn { flex: 1 1 40%; padding: 9px 6px; font-size: 0.75rem; }
+    .cal-title { order: -1; flex: 1 1 100%; min-width: 0; font-size: 1.25rem; }
+    .cal-legend { font-size: 0.7rem; gap: 10px; }
+    .cal-days-m { display: flex; gap: 4px; margin-bottom: 10px; }
+    .cal-days-m button { flex: 1; padding: 7px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: inherit; font-size: 0.72rem; line-height: 1.3; cursor: pointer; }
+    .cal-days-m button b { display: block; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.8rem; }
+    .cal-days-m button.act { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+    .cal-days-m button.act b { color: #111; }
+    .cal-days-m button.hoy:not(.act) { border-color: var(--accent); }
+    table.cal { min-width: 0; }
+    table.cal td { height: 52px; }
+    table.cal td.hora { width: 52px; padding: 6px 4px; }
+    table.cal thead th small { display: none; }
+    .cal-chip { white-space: normal; font-size: 0.78rem; padding: 5px 7px; }
+    table.cal[data-sel="0"] [data-d]:not([data-d="0"]), table.cal[data-sel="1"] [data-d]:not([data-d="1"]),
+    table.cal[data-sel="2"] [data-d]:not([data-d="2"]), table.cal[data-sel="3"] [data-d]:not([data-d="3"]),
+    table.cal[data-sel="4"] [data-d]:not([data-d="4"]), table.cal[data-sel="5"] [data-d]:not([data-d="5"]) { display: none; }
+    .tarea-info { grid-template-columns: 90px 1fr; }
+    .modal { margin: 8px; max-height: 94vh; overflow-y: auto; }
+    .modal-footer { flex-wrap: wrap; }
+    .modal-footer .btn { flex: 1 1 45%; }
+    .filter-bar .form-group { flex: 1 1 45%; min-width: 0; }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .kpi-value { font-size: 1.8rem; }
+  }
 </style>
 </head>
 <body>
@@ -500,6 +540,7 @@
       <button class="btn btn-secondary" onclick="cambiarSemana(0)">Hoy</button>
     </div>
     <div class="cal-legend" id="cal-leyenda"></div>
+    <div class="cal-days-m" id="cal-dias-m"></div>
     <div class="cal-wrap"><table class="cal" id="cal-tabla"></table></div>
   </div>
 
@@ -632,6 +673,15 @@
   </div>
 </div>
 
+<!-- Modal eliminar (una o serie) -->
+<div class="modal-overlay" id="modal-eliminar">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header"><span class="modal-title">ELIMINAR LIMPIEZA</span><button class="modal-close" onclick="closeModal('modal-eliminar')">✕</button></div>
+    <div id="el-texto" style="font-size:0.88rem;margin-bottom:14px;line-height:1.5;"></div>
+    <div id="el-botones" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+</div>
+
 <!-- Modal zona -->
 <div class="modal-overlay" id="modal-zona">
   <div class="modal" style="max-width:400px;">
@@ -674,6 +724,7 @@ const BUCKET = 'cln-fotos';
 const db = { zonas: [], profesores: [], tareas: [], auditoria: [] };
 const HORA_MIN = 6, HORA_MAX = 22;
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+let diaMovil = Math.min(5, (new Date().getDay() + 6) % 7);
 let rol = null, semanaInicio = null, editandoTareaId = null, editandoZonaId = null;
 let detalleId = null, fotoBlob = null, fotoPreview = null;
 
@@ -788,11 +839,14 @@ function renderCalendario() {
   const porFecha = {};
   db.tareas.forEach(t => { if (fechas.includes(t.fecha)) (porFecha[t.fecha] ||= []).push(t); });
 
+  document.getElementById('cal-dias-m').innerHTML = dias.map((d, i) =>
+    `<button class="${i === diaMovil ? 'act' : ''}${iso(d) === hoy ? ' hoy' : ''}" onclick="elegirDiaMovil(${i})">${DIAS[i].slice(0, 3)}<b>${String(d.getDate()).padStart(2, '0')}</b></button>`).join('');
+  document.getElementById('cal-tabla').dataset.sel = diaMovil;
   let html = '<thead><tr><th style="width:64px"></th>' + dias.map((d, i) =>
-    `<th class="${iso(d) === hoy ? 'hoy' : ''}">${DIAS[i]}<small>${fmtFecha(iso(d)).slice(0, 5)}</small></th>`).join('') + '</tr></thead><tbody>';
+    `<th data-d="${i}" class="${iso(d) === hoy ? 'hoy' : ''}">${DIAS[i]}<small>${fmtFecha(iso(d)).slice(0, 5)}</small></th>`).join('') + '</tr></thead><tbody>';
   for (let h = HORA_MIN; h < HORA_MAX; h++) {
     html += `<tr><td class="hora">${hh(h)}</td>`;
-    fechas.forEach(f => {
+    fechas.forEach((f, di) => {
       const ts = (porFecha[f] || []).filter(t => t.hora_inicio <= h && h < t.hora_fin);
       const chips = ts.map(t => {
         const e = estadoTarea(t), z = getZona(t.zona_id), p = getProf(t.profesor_id);
@@ -802,12 +856,13 @@ function renderCalendario() {
         const txt = primero ? `${marca}${z?.nombre || 'Zona'} · ${p?.nombre || '—'}` : `↳ ${z?.nombre || 'Zona'}`;
         return `<button class="cal-chip zc-${z?.orden || 1} ${cls}${primero ? '' : ' cont'}" title="${esc((z?.nombre || '') + ' · ' + (p?.nombre || '') + ' · ' + hh(t.hora_inicio) + '–' + hh(t.hora_fin))}" onclick="abrirDetalle(${t.id})">${esc(txt)}</button>`;
       }).join('');
-      html += `<td class="${f === hoy ? 'hoy ' : ''}${ts.length ? '' : 'libre'}" onclick="clickCelda(event,'${f}',${h})">${chips}</td>`;
+      html += `<td data-d="${di}" class="${f === hoy ? 'hoy ' : ''}${ts.length ? '' : 'libre'}" onclick="clickCelda(event,'${f}',${h})">${chips}</td>`;
     });
     html += '</tr>';
   }
   document.getElementById('cal-tabla').innerHTML = html + '</tbody>';
 }
+function elegirDiaMovil(i) { diaMovil = i; renderCalendario(); }
 function clickCelda(e, fecha, h) {
   if (rol !== 'admin' || e.target.tagName !== 'TD') return;
   openModalTarea(null, fecha, h);
@@ -860,10 +915,10 @@ async function guardarTarea() {
       await logAudit('editar', 'tarea', `Limpieza modificada: ${det} · ${fmtFecha(fecha)}`);
       toast('Limpieza actualizada');
     } else {
-      const rows = [];
+      const rows = [], serie_id = veces > 1 ? crypto.randomUUID() : null;
       for (let i = 0; i < veces; i++) {
         const d = parseISO(fecha); d.setDate(d.getDate() + 7 * i);
-        rows.push({ zona_id, profesor_id, fecha: iso(d), hora_inicio, hora_fin, observacion });
+        rows.push(serie_id ? { zona_id, profesor_id, fecha: iso(d), hora_inicio, hora_fin, observacion, serie_id } : { zona_id, profesor_id, fecha: iso(d), hora_inicio, hora_fin, observacion });
       }
       const { data, error } = await supabaseClient.from('cln_tareas').insert(rows).select();
       if (error) throw error;
@@ -974,15 +1029,48 @@ async function reabrirTarea(id) {
   await logAudit('editar', 'tarea', `Limpieza reabierta (foto eliminada): ${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${fmtFecha(t.fecha)} ${hh(t.hora_inicio)}`);
   closeModal('modal-detalle'); renderCalendario(); renderHistorialSiVisible();
 }
-async function eliminarTarea(id) {
-  const t = db.tareas.find(x => x.id === id);
-  if (!t || !confirm('¿Eliminar esta limpieza programada?')) return;
-  const { error } = await supabaseClient.from('cln_tareas').delete().eq('id', id);
+// Miembros de la serie semanal de una limpieza (con serie_id; las antiguas sin serie_id se agrupan por coincidencia exacta)
+function miembrosSerie(t) {
+  if (t.serie_id) return db.tareas.filter(x => x.serie_id === t.serie_id);
+  const dow = parseISO(t.fecha).getDay();
+  return db.tareas.filter(x => !x.serie_id && x.zona_id === t.zona_id && x.profesor_id === t.profesor_id &&
+    x.hora_inicio === t.hora_inicio && x.hora_fin === t.hora_fin && (x.observacion || '') === (t.observacion || '') && parseISO(x.fecha).getDay() === dow);
+}
+function eliminarTarea(id) {
+  const t = db.tareas.find(x => x.id === id); if (!t) return;
+  const pend = miembrosSerie(t).filter(x => x.estado !== 'realizada').sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const siguientes = pend.filter(x => x.fecha >= t.fecha);
+  const desc = `${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${fmtFecha(t.fecha)} ${hh(t.hora_inicio)}–${hh(t.hora_fin)}`;
+  if (pend.length <= 1 || t.estado === 'realizada') {
+    if (confirm(`¿Eliminar esta limpieza?\n${desc}`)) borrarTareas([t.id], 'Limpieza eliminada: ' + desc);
+    return;
+  }
+  document.getElementById('el-texto').innerHTML =
+    `<strong>${esc(desc)}</strong><br>Esta limpieza se repite semanalmente: hay <strong>${pend.length}</strong> pendientes en la serie (${fmtFecha(pend[0].fecha)} al ${fmtFecha(pend[pend.length - 1].fecha)}).<br><span style="color:var(--muted)">Las ya realizadas (con foto) nunca se eliminan en bloque.</span>`;
+  elCtx = { solo: [[t.id], 'Limpieza eliminada: ' + desc], sig: [siguientes.map(x => x.id), `Serie eliminada desde esta fecha (${siguientes.length} limpiezas): ${desc}`],
+    toda: [pend.map(x => x.id), `Serie completa eliminada (${pend.length} limpiezas pendientes): ${desc}`] };
+  let btns = `<button class="btn btn-secondary btn-block-left" onclick="confirmarEliminar('solo')">Solo esta (${fmtFecha(t.fecha)})</button>`;
+  if (siguientes.length > 1 && siguientes.length < pend.length)
+    btns += `<button class="btn btn-danger btn-block-left" onclick="confirmarEliminar('sig')">Esta y las siguientes (${siguientes.length})</button>`;
+  btns += `<button class="btn btn-danger btn-block-left" onclick="confirmarEliminar('toda')">Toda la serie (${pend.length} pendientes)</button>`;
+  btns += `<button class="btn btn-secondary btn-block-left" onclick="closeModal('modal-eliminar')">Cancelar</button>`;
+  document.getElementById('el-botones').innerHTML = btns;
+  closeModal('modal-detalle'); openModal('modal-eliminar');
+}
+let elCtx = {};
+async function confirmarEliminar(k) {
+  closeModal('modal-eliminar');
+  await borrarTareas(...elCtx[k]);
+}
+async function borrarTareas(ids, detalle) {
+  const borrar = db.tareas.filter(x => ids.includes(x.id));
+  const { error } = await supabaseClient.from('cln_tareas').delete().in('id', ids);
   if (error) { alert('Error: ' + error.message); return; }
-  if (t.foto_url) borrarArchivo(t.foto_url);
-  db.tareas = db.tareas.filter(x => x.id !== id);
-  await logAudit('eliminar', 'tarea', `Limpieza eliminada: ${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${fmtFecha(t.fecha)} ${hh(t.hora_inicio)}–${hh(t.hora_fin)}`);
+  borrar.forEach(x => { if (x.foto_url) borrarArchivo(x.foto_url); });
+  db.tareas = db.tareas.filter(x => !ids.includes(x.id));
+  await logAudit('eliminar', 'tarea', detalle);
   closeModal('modal-detalle'); renderCalendario(); renderHistorialSiVisible();
+  toast(ids.length > 1 ? `${ids.length} limpiezas eliminadas` : 'Limpieza eliminada');
 }
 function renderHistorialSiVisible() { if (document.getElementById('view-historial').classList.contains('active')) renderHistorial(); }
 function verFoto(id) {
