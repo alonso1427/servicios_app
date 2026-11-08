@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanTrack — Programa de Limpieza</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff4444;
+    --success: #4caf50;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: nowrap;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+  header span {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-left: 1px solid var(--border);
+    padding-left: 16px;
+    flex-shrink: 0;
+  }
+  .nav-tabs {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    min-width: 0;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active { background: var(--accent); color: #111; font-weight: 600; }
+
+  /* LAYOUT */
+  .main { max-width: 1400px; margin: 0 auto; padding: 32px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 1px;
+  }
+  .section-title span { color: var(--accent); }
+  .section-sub { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #111; }
+  .btn-primary:hover { background: #f4ff7a; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #2a2a2a; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 0.75rem; padding: 6px 12px; }
+  .btn-danger:hover { background: var(--danger); color: #fff; }
+  .btn-block { width: 100%; justify-content: center; }
+  .btn-sm { font-size: 0.72rem; padding: 6px 10px; }
+
+  /* CARDS / GRID */
+  .grid { display: grid; gap: 16px; }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1000px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } .grid-3 { grid-template-columns: repeat(2,1fr);} }
+  @media (max-width: 640px) { .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .kpi-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .kpi-value { font-family: 'Bebas Neue', sans-serif; font-size: 2.1rem; color: var(--accent); letter-spacing: 1px; }
+  .kpi-value.small { font-size: 1.6rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+  @media (max-width: 700px) { .form-row, .form-row-3 { grid-template-columns: 1fr; } }
+  .form-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .form-control {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  .form-control:disabled { opacity: 0.6; cursor: not-allowed; }
+  select.form-control { cursor: pointer; }
+  textarea.form-control { resize: vertical; min-height: 70px; font-family: 'DM Sans', sans-serif; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); }
+  th {
+    background: var(--surface2);
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th .sort-arrow { color: var(--accent); margin-left: 4px; }
+  td {
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    border-top: 1px solid var(--border);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .badge-active { background: rgba(232,255,71,0.15); color: var(--accent); }
+  .badge-done   { background: rgba(76,175,80,0.15);  color: var(--success); }
+  .badge-warn   { background: rgba(255,107,53,0.15); color: var(--accent2); }
+  .badge-danger { background: rgba(255,68,68,0.15);  color: var(--danger); }
+
+  .comp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(76,175,80,0.15);
+    color: var(--success);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+  }
+  .comp-badge:hover { background: rgba(76,175,80,0.3); }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
+  .empty-text { font-size: 0.9rem; }
+
+  /* MODALS */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px; color: var(--accent); }
+  .modal-close { background: none; border: none; color: var(--muted); font-size: 1.3rem; cursor: pointer; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  #comp-viewer-content { text-align: center; }
+  #comp-viewer-content iframe { width: 100%; height: 500px; border-radius: 8px; border: none; }
+
+  /* UPLOAD */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: border 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: var(--accent); }
+  .upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 0.82rem; }
+  .upload-preview-img { max-width: 100%; max-height: 160px; border-radius: 8px; }
+  .upload-file-name { font-size: 0.8rem; color: var(--text); margin-top: 6px; word-break: break-all; }
+  .upload-clear { position: absolute; top: 8px; right: 8px; background: var(--danger); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 0.7rem; }
+
+  /* PAGO CARD */
+  .pago-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .pago-header {
+    background: var(--surface2);
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pago-vendedor { font-weight: 600; font-size: 1rem; }
+  .pago-total { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); letter-spacing: 1px; }
+  .pago-body { padding: 6px 20px; }
+  .pago-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+  .pago-row:first-child { border-top: none; }
+  .pago-row-client { font-size: 0.85rem; }
+  .pago-row-monto { font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; text-align: right; }
+
+  /* BAR CHART (horizontal) */
+  .bar-list { display: flex; flex-direction: column; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 90px; gap: 12px; align-items: center; }
+  .bar-row-label { font-size: 0.82rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { background: var(--surface2); border-radius: 6px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #c8e030); border-radius: 6px; transition: width 0.4s; }
+  .bar-row-value { font-family: 'DM Mono', monospace; font-size: 0.8rem; text-align: right; color: var(--muted); }
+
+  /* MONTHLY CHART (vertical) */
+  .month-chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding: 10px 4px 0; }
+  .month-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+  .month-bar { width: 100%; max-width: 36px; background: linear-gradient(180deg, var(--accent), #b8cf30); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.4s; }
+  .month-label { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; }
+  .month-value { font-size: 0.68rem; color: var(--text); font-family: 'DM Mono', monospace; }
+
+  @media (max-width: 600px) {
+    .main { padding: 16px; }
+    header { padding: 0 16px; height: auto; }
+    header h1 { font-size: 1.5rem; }
+    .nav-tab span { display: none; }
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+  }
+
+  /* AUDITORIA */
+  .audit-notice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .audit-notice strong { color: var(--text); }
+
+  /* ===== FINTRACK: extras ===== */
+  .num { font-family: 'DM Mono', monospace; text-align: right; }
+  .neg { color: var(--danger); }
+  .pos { color: var(--success); }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  /* Tabla resumen */
+  .sum-table { min-width: 640px; }
+  .sum-table th { cursor: default; }
+  .sum-table th:hover { color: var(--muted); }
+  .sum-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); white-space: nowrap; }
+  .sum-table th:first-child { position: sticky; left: 0; z-index: 2; }
+  .sum-section td { background: var(--surface2) !important; color: var(--accent); font-weight: 600; font-size: 0.74rem; letter-spacing: 1px; text-transform: uppercase; }
+  .sum-cat td { font-weight: 600; }
+  .sum-sub td { color: var(--muted); font-size: 0.82rem; }
+  .sum-sub td:first-child { padding-left: 36px; }
+  .sum-sub-flat td { font-size: 0.85rem; }
+  .sum-total td { border-top: 2px solid var(--border); font-weight: 700; }
+  .sum-total td:first-child { background: var(--surface2); }
+  .sum-result td { background: rgba(232,255,71,0.08); color: var(--accent); font-weight: 700; border-top: 1px solid var(--accent); }
+  .sum-result td:first-child { background: #232610; }
+  .sum-result td.neg { color: var(--danger); }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface2); border: 1px solid var(--accent); color: var(--text);
+    padding: 12px 18px; border-radius: 10px; z-index: 2000; font-size: 0.85rem;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .mov-summary { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+  .mov-summary strong { color: var(--text); font-family: 'DM Mono', monospace; }
+
+  /* ===== CLEANTRACK ===== */
+  body:not(.rol-admin) .solo-admin { display: none !important; }
+  #login-screen { position: fixed; inset: 0; background: var(--bg); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  #login-screen .card { width: 100%; max-width: 380px; text-align: center; }
+  #login-screen h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.4rem; letter-spacing: 2px; color: var(--accent); }
+  .user-chip { margin-left: 8px; flex-shrink: 0; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+  .cal-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .cal-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 1px; min-width: 250px; text-align: center; }
+  .cal-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.76rem; color: var(--muted); margin-bottom: 12px; }
+  .cal-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+  .cal-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table.cal { width: 100%; min-width: 860px; border-collapse: collapse; table-layout: fixed; }
+  table.cal th { background: var(--surface2); padding: 10px 6px; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); text-align: center; cursor: default; }
+  table.cal th:hover { color: var(--muted); }
+  table.cal th.hoy { color: var(--accent); }
+  table.cal th small { display: block; font-size: 0.72rem; letter-spacing: 0; color: var(--text); font-family: 'DM Mono', monospace; }
+  table.cal td { border-top: 1px solid var(--border); border-left: 1px solid var(--border); height: 46px; padding: 2px; vertical-align: top; }
+  table.cal td.hora { width: 64px; border-left: none; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); text-align: right; padding: 6px 8px; background: var(--surface2); }
+  table.cal td.hoy { background: rgba(232,255,71,0.04); }
+  body.rol-admin table.cal td.libre { cursor: pointer; }
+  body.rol-admin table.cal td.libre:hover { background: rgba(232,255,71,0.09); }
+  .cal-chip { --zc: var(--accent); display: block; width: 100%; text-align: left; margin: 1px 0; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--zc); border-left-width: 4px; background: rgba(255,255,255,0.03); color: var(--text); font-size: 0.68rem; line-height: 1.25; cursor: pointer; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-chip:hover { background: rgba(255,255,255,0.09); }
+  .cal-chip.cont { opacity: 0.6; }
+  .cal-chip.ok { background: rgba(76,175,80,0.16); border-color: var(--success); }
+  .cal-chip.late { background: rgba(255,68,68,0.14); border-color: var(--danger); }
+  .zc-1 { --zc: #e8ff47; } .zc-2 { --zc: #4fc3f7; } .zc-3 { --zc: #ff8a65; } .zc-4 { --zc: #ba68c8; }
+  .tarea-foto { max-width: 100%; max-height: 52vh; border-radius: 8px; display: block; margin: 8px auto; cursor: zoom-in; }
+  .tarea-info { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 0.86rem; margin-bottom: 12px; }
+  .tarea-info dt { color: var(--muted); } .tarea-info dd { margin: 0; }
+</style>
+</head>
+<body>
+<div id="login-screen">
+  <div class="card">
+    <h1>CleanTrack</h1>
+    <div class="section-sub" style="margin-bottom:18px;">Programa de limpieza del gimnasio</div>
+    <div class="form-group" style="text-align:left;">
+      <label class="form-label">Clave de acceso</label>
+      <input type="password" class="form-control" id="login-clave" placeholder="Ingresa tu clave" onkeydown="if(event.key==='Enter')ingresar()">
+    </div>
+    <div id="login-error" style="color:var(--danger);font-size:0.8rem;min-height:18px;margin-bottom:8px;"></div>
+    <button class="btn btn-primary btn-block" onclick="ingresar()">Ingresar</button>
+  </div>
+</div>
+
+<header>
+  <h1>CleanTrack</h1>
+  <span>Programa de Limpieza</span>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="showView('calendario')">📅 <span>Calendario</span></button>
+    <button class="nav-tab" onclick="showView('historial')">✅ <span>Historial</span></button>
+    <button class="nav-tab solo-admin" onclick="showView('config')">⚙️ <span>Configuración</span></button>
+    <button class="nav-tab solo-admin" onclick="showView('auditoria')">🔒 <span>Auditoría</span></button>
+  </nav>
+  <div class="user-chip"><span id="rol-texto"></span><button class="btn btn-secondary btn-sm" onclick="salir()">Salir</button></div>
+</header>
+
+<div class="main">
+
+  <!-- CALENDARIO -->
+  <div class="view active" id="view-calendario">
+    <div class="section-header">
+      <div>
+        <div class="section-title">CALENDARIO DE <span>LIMPIEZA</span></div>
+        <div class="section-sub" id="cal-sub"></div>
+      </div>
+      <button class="btn btn-primary solo-admin" onclick="openModalTarea()">+ Programar limpieza</button>
+    </div>
+
+    <div class="cal-toolbar">
+      <button class="btn btn-secondary" onclick="cambiarSemana(-1)">◀ Semana anterior</button>
+      <div class="cal-title" id="cal-titulo"></div>
+      <button class="btn btn-secondary" onclick="cambiarSemana(1)">Semana siguiente ▶</button>
+      <button class="btn btn-secondary" onclick="cambiarSemana(0)">Hoy</button>
+    </div>
+    <div class="cal-legend" id="cal-leyenda"></div>
+    <div class="cal-wrap"><table class="cal" id="cal-tabla"></table></div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="view" id="view-historial">
+    <div class="section-header">
+      <div>
+        <div class="section-title">HISTORIAL DE <span>LIMPIEZAS</span></div>
+        <div class="section-sub">Cumplimiento y fotos de respaldo</div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <div class="form-group"><label class="form-label">Desde</label><input type="date" class="form-control" id="h-desde" onchange="renderHistorial()"></div>
+      <div class="form-group"><label class="form-label">Hasta</label><input type="date" class="form-control" id="h-hasta" onchange="renderHistorial()"></div>
+      <div class="form-group"><label class="form-label">Zona</label><select class="form-control" id="h-zona" onchange="renderHistorial()"></select></div>
+      <div class="form-group"><label class="form-label">Profesor</label><select class="form-control" id="h-prof" onchange="renderHistorial()"></select></div>
+      <div class="form-group"><label class="form-label">Estado</label>
+        <select class="form-control" id="h-estado" onchange="renderHistorial()">
+          <option value="">Todos</option><option value="pendiente">Pendientes</option><option value="atrasada">Atrasadas</option><option value="realizada">Realizadas</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-4" style="margin-bottom:20px;">
+      <div class="kpi-card"><div class="kpi-label">Programadas</div><div class="kpi-value" id="kpi-prog">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Realizadas</div><div class="kpi-value" id="kpi-real">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Atrasadas</div><div class="kpi-value" id="kpi-atr">0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Cumplimiento (vencidas)</div><div class="kpi-value" id="kpi-pct">0%</div></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Horario</th><th>Zona</th><th>Profesor</th><th>Estado</th><th>Realizada el</th><th>Foto</th></tr></thead>
+        <tbody id="tabla-historial"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div class="view" id="view-config">
+    <div class="section-header">
+      <div>
+        <div class="section-title">ZONAS Y <span>PROFESORES</span></div>
+        <div class="section-sub">Las 4 zonas de limpieza y el equipo que las realiza</div>
+      </div>
+    </div>
+    <div class="grid grid-2" style="align-items:start;">
+      <div class="card">
+        <div class="card-title">🧽 Zonas de limpieza (4)</div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Nombre</th><th>Acciones</th></tr></thead>
+          <tbody id="tabla-zonas"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">👤 Profesores
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openModalProfesor()">+ Nuevo</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tabla-profes"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDITORÍA -->
+  <div class="view" id="view-auditoria">
+    <div class="section-header">
+      <div>
+        <div class="section-title">AUDITORÍA <span>INTERNA</span></div>
+        <div class="section-sub">Historial de todas las modificaciones realizadas en el sistema</div>
+      </div>
+    </div>
+    <div class="audit-notice">🔒 <span>Esta hoja es de <strong>solo lectura</strong>: registra automáticamente cada programación, cambio, limpieza realizada y eliminación. No puede editarse ni borrarse.</span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha y hora</th><th>Acción</th><th>Entidad</th><th>Detalle</th></tr></thead>
+      <tbody id="tabla-auditoria"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- Modal programar / editar tarea -->
+<div class="modal-overlay" id="modal-tarea">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title" id="tarea-modal-title">PROGRAMAR LIMPIEZA</span>
+      <button class="modal-close" onclick="closeModal('modal-tarea')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Zona *</label><select class="form-control" id="t-zona"></select></div>
+      <div class="form-group"><label class="form-label">Profesor designado *</label><select class="form-control" id="t-prof"></select></div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group"><label class="form-label">Fecha *</label><input type="date" class="form-control" id="t-fecha"></div>
+      <div class="form-group"><label class="form-label">Desde *</label><select class="form-control" id="t-ini"></select></div>
+      <div class="form-group"><label class="form-label">Hasta *</label><select class="form-control" id="t-fin"></select></div>
+    </div>
+    <div class="form-group" id="t-repetir-grupo">
+      <label class="form-label">Repetir cada semana (mismo día y horario)</label>
+      <select class="form-control" id="t-repetir">
+        <option value="1">No repetir</option><option value="2">2 semanas</option><option value="4">4 semanas</option>
+        <option value="8">8 semanas</option><option value="12">12 semanas</option><option value="26">26 semanas</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Instrucciones</label><textarea class="form-control" id="t-obs" placeholder="Detalle de lo que hay que limpiar..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tarea')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-tarea" onclick="guardarTarea()">Programar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalle tarea / subir foto -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title">LIMPIEZA PROGRAMADA</span>
+      <button class="modal-close" onclick="closeModal('modal-detalle')">✕</button>
+    </div>
+    <dl class="tarea-info" id="d-info"></dl>
+    <div id="d-foto"></div>
+    <div id="d-subir" style="display:none;">
+      <label class="form-label">Foto de respaldo de la limpieza *</label>
+      <div class="upload-zone" onclick="document.getElementById('d-archivo').click()">
+        <input type="file" id="d-archivo" accept="image/*" style="display:none;" onchange="elegirFoto(event)">
+        <div id="upload-placeholder" class="upload-placeholder"><span style="font-size:1.5rem;">📷</span><span>Toca para tomar o elegir una foto</span></div>
+        <div id="upload-preview" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="modal-footer" id="d-botones"></div>
+  </div>
+</div>
+
+<!-- Modal zona -->
+<div class="modal-overlay" id="modal-zona">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><span class="modal-title">RENOMBRAR ZONA</span><button class="modal-close" onclick="closeModal('modal-zona')">✕</button></div>
+    <div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-control" id="z-nombre"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-zona')">Cancelar</button><button class="btn btn-primary" onclick="guardarZona()">Guardar</button></div>
+  </div>
+</div>
+
+<!-- Modal profesor -->
+<div class="modal-overlay" id="modal-profesor">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header"><span class="modal-title">NUEVO PROFESOR</span><button class="modal-close" onclick="closeModal('modal-profesor')">✕</button></div>
+    <div class="form-group"><label class="form-label">Nombre *</label><input type="text" class="form-control" id="p-nombre"></div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-profesor')">Cancelar</button><button class="btn btn-primary" onclick="guardarProfesor()">Guardar</button></div>
+  </div>
+</div>
+
+<!-- Modal foto grande -->
+<div class="modal-overlay" id="modal-foto">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header"><span class="modal-title">FOTO DE RESPALDO</span><button class="modal-close" onclick="closeModal('modal-foto')">✕</button></div>
+    <div id="foto-contenido"></div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-foto')">Cerrar</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== CONFIGURACIÓN =====
+// Claves de acceso (barrera de uso, no seguridad real). Cámbialas aquí si lo necesitas.
+const CLAVE_ADMIN = 'admin1234';      // programa limpiezas, edita, ve auditoría
+const CLAVE_PROFESOR = 'profe1234';   // usuario compartido: ve calendario y sube fotos de respaldo
+const SUPABASE_URL = 'https://wyyvgomzrfjcqbdpfbyu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXZnb216cmZqY3FiZHBmYnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NzAzMzQsImV4cCI6MjEwMDE0NjMzNH0.spUP4vOXSpXnDR9QH9KrDX8sHNqvVf9LC1tsAjcUZOI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const BUCKET = 'cln-fotos';
+
+const db = { zonas: [], profesores: [], tareas: [], auditoria: [] };
+const HORA_MIN = 6, HORA_MAX = 22;
+const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+let rol = null, semanaInicio = null, editandoTareaId = null, editandoZonaId = null;
+let detalleId = null, fotoBlob = null, fotoPreview = null;
+
+// ===== HELPERS =====
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const parseISO = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const hoyISO = () => iso(new Date());
+const fmtFecha = f => f ? f.split('-').reverse().join('-') : '';
+const fmtFechaHora = ts => new Date(ts).toLocaleString('es-CL');
+const hh = h => String(h).padStart(2, '0') + ':00';
+const getZona = id => db.zonas.find(z => z.id === id);
+const getProf = id => db.profesores.find(p => p.id === id);
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+function lunesDe(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function estadoTarea(t) {
+  if (t.estado === 'realizada') return 'realizada';
+  const ahora = new Date(), hoy = iso(ahora);
+  if (t.fecha < hoy || (t.fecha === hoy && t.hora_fin <= ahora.getHours())) return 'atrasada';
+  return 'pendiente';
+}
+const ETIQ = { realizada: 'Realizada', atrasada: 'Atrasada', pendiente: 'Pendiente' };
+const BADGE = { realizada: 'badge-done', atrasada: 'badge-danger', pendiente: 'badge-warn' };
+function mostrarErrorConexion(error) {
+  if (document.getElementById('supabase-error-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'supabase-error-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff4444;color:#fff;padding:10px 20px;text-align:center;font-size:0.85rem;z-index:9999;';
+  b.textContent = '⚠️ No se pudo conectar con Supabase. ¿Ejecutaste cleantrack_schema.sql? Detalle: ' + (error?.message || '');
+  document.body.prepend(b);
+}
+function opciones(list, sel, label = x => x.nombre) {
+  return list.map(x => `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${esc(label(x))}</option>`).join('');
+}
+
+// ===== ACCESO =====
+function guardarRol(r) { try { sessionStorage.setItem('cln_rol', r); } catch (e) {} }
+function leerRol() { try { return sessionStorage.getItem('cln_rol'); } catch (e) { return null; } }
+function ingresar() {
+  const c = document.getElementById('login-clave').value;
+  if (c === CLAVE_ADMIN) { guardarRol('admin'); aplicarRol('admin'); iniciarApp(); }
+  else if (c === CLAVE_PROFESOR) { guardarRol('profesor'); aplicarRol('profesor'); iniciarApp(); }
+  else document.getElementById('login-error').textContent = 'Clave incorrecta.';
+}
+function aplicarRol(r) {
+  rol = r;
+  document.body.classList.toggle('rol-admin', r === 'admin');
+  document.getElementById('rol-texto').textContent = r === 'admin' ? '🔑 Administrador' : '👤 Profesores';
+  document.getElementById('login-screen').style.display = 'none';
+}
+function salir() { try { sessionStorage.removeItem('cln_rol'); } catch (e) {} location.reload(); }
+
+// ===== CARGA =====
+async function cargarTodo() {
+  const [z, p, t, a] = await Promise.all([
+    supabaseClient.from('cln_zonas').select('*').order('orden'),
+    supabaseClient.from('cln_profesores').select('*').order('nombre'),
+    supabaseClient.from('cln_tareas').select('*').order('fecha', { ascending: false }).limit(10000),
+    supabaseClient.from('cln_auditoria').select('*').order('id', { ascending: false }).limit(500)
+  ]);
+  for (const r of [z, p, t, a]) if (r.error) throw r.error;
+  db.zonas = z.data; db.profesores = p.data; db.tareas = t.data; db.auditoria = a.data;
+}
+async function logAudit(accion, entidad, detalle) {
+  const { data, error } = await supabaseClient.from('cln_auditoria').insert({ accion, entidad, detalle }).select().single();
+  if (error) { console.error('Auditoría:', error); return; }
+  db.auditoria.unshift(data);
+}
+
+// ===== NAVEGACIÓN =====
+const VISTAS = ['calendario', 'historial', 'config', 'auditoria'];
+function showView(name) {
+  if ((name === 'config' || name === 'auditoria') && rol !== 'admin') return;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-tab')[VISTAS.indexOf(name)].classList.add('active');
+  if (name === 'calendario') renderCalendario();
+  if (name === 'historial') { poblarFiltrosHistorial(); renderHistorial(); }
+  if (name === 'config') renderConfig();
+  if (name === 'auditoria') renderAuditoria();
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ===== CALENDARIO =====
+function cambiarSemana(delta) {
+  if (delta === 0) semanaInicio = lunesDe(new Date());
+  else { semanaInicio = new Date(semanaInicio); semanaInicio.setDate(semanaInicio.getDate() + 7 * delta); }
+  renderCalendario();
+}
+function renderCalendario() {
+  const dias = DIAS.map((_, i) => { const d = new Date(semanaInicio); d.setDate(d.getDate() + i); return d; });
+  const hoy = hoyISO();
+  document.getElementById('cal-titulo').textContent = `Semana del ${fmtFecha(iso(dias[0]))} al ${fmtFecha(iso(dias[5]))}`;
+  document.getElementById('cal-sub').textContent = rol === 'admin'
+    ? 'Haz clic en un horario vacío para programar, o en un bloque para ver o editar.'
+    : 'Toca un bloque programado para subir la foto de respaldo de la limpieza.';
+  document.getElementById('cal-leyenda').innerHTML =
+    db.zonas.map(z => `<span><i class="cal-chip zc-${z.orden}" style="background:var(--zc);padding:0;border:0;width:10px;height:10px;display:inline-block"></i>${esc(z.nombre)}</span>`).join('') +
+    '<span>✓ Realizada</span><span>⚠ Atrasada</span>';
+
+  const fechas = dias.map(iso);
+  const porFecha = {};
+  db.tareas.forEach(t => { if (fechas.includes(t.fecha)) (porFecha[t.fecha] ||= []).push(t); });
+
+  let html = '<thead><tr><th style="width:64px"></th>' + dias.map((d, i) =>
+    `<th class="${iso(d) === hoy ? 'hoy' : ''}">${DIAS[i]}<small>${fmtFecha(iso(d)).slice(0, 5)}</small></th>`).join('') + '</tr></thead><tbody>';
+  for (let h = HORA_MIN; h < HORA_MAX; h++) {
+    html += `<tr><td class="hora">${hh(h)}</td>`;
+    fechas.forEach(f => {
+      const ts = (porFecha[f] || []).filter(t => t.hora_inicio <= h && h < t.hora_fin);
+      const chips = ts.map(t => {
+        const e = estadoTarea(t), z = getZona(t.zona_id), p = getProf(t.profesor_id);
+        const cls = e === 'realizada' ? 'ok' : e === 'atrasada' ? 'late' : '';
+        const marca = e === 'realizada' ? '✓ ' : e === 'atrasada' ? '⚠ ' : '';
+        const primero = h === t.hora_inicio;
+        const txt = primero ? `${marca}${z?.nombre || 'Zona'} · ${p?.nombre || '—'}` : `↳ ${z?.nombre || 'Zona'}`;
+        return `<button class="cal-chip zc-${z?.orden || 1} ${cls}${primero ? '' : ' cont'}" title="${esc((z?.nombre || '') + ' · ' + (p?.nombre || '') + ' · ' + hh(t.hora_inicio) + '–' + hh(t.hora_fin))}" onclick="abrirDetalle(${t.id})">${esc(txt)}</button>`;
+      }).join('');
+      html += `<td class="${f === hoy ? 'hoy ' : ''}${ts.length ? '' : 'libre'}" onclick="clickCelda(event,'${f}',${h})">${chips}</td>`;
+    });
+    html += '</tr>';
+  }
+  document.getElementById('cal-tabla').innerHTML = html + '</tbody>';
+}
+function clickCelda(e, fecha, h) {
+  if (rol !== 'admin' || e.target.tagName !== 'TD') return;
+  openModalTarea(null, fecha, h);
+}
+
+// ===== PROGRAMAR TAREA =====
+function openModalTarea(id, fecha, hora) {
+  if (!db.zonas.length) { alert('No hay zonas configuradas.'); return; }
+  const activos = db.profesores.filter(p => p.activo);
+  const t = id ? db.tareas.find(x => x.id === id) : null;
+  if (!activos.length && !t) { alert('Primero agrega profesores en "Zonas y profesores".'); return; }
+  editandoTareaId = t ? t.id : null;
+  document.getElementById('tarea-modal-title').textContent = t ? 'EDITAR LIMPIEZA' : 'PROGRAMAR LIMPIEZA';
+  document.getElementById('btn-guardar-tarea').textContent = t ? 'Guardar cambios' : 'Programar';
+  document.getElementById('t-repetir-grupo').style.display = t ? 'none' : '';
+  document.getElementById('t-zona').innerHTML = opciones(db.zonas, t?.zona_id);
+  const lista = t && !activos.some(p => p.id === t.profesor_id) ? [...activos, getProf(t.profesor_id)].filter(Boolean) : activos;
+  document.getElementById('t-prof').innerHTML = opciones(lista, t?.profesor_id);
+  document.getElementById('t-fecha').value = t?.fecha || fecha || hoyISO();
+  let ini = '', fin = '';
+  for (let h = HORA_MIN; h < HORA_MAX; h++) ini += `<option value="${h}">${hh(h)}</option>`;
+  for (let h = HORA_MIN + 1; h <= HORA_MAX; h++) fin += `<option value="${h}">${hh(h)}</option>`;
+  document.getElementById('t-ini').innerHTML = ini; document.getElementById('t-fin').innerHTML = fin;
+  const hi = t?.hora_inicio ?? hora ?? 8;
+  document.getElementById('t-ini').value = hi;
+  document.getElementById('t-fin').value = t?.hora_fin ?? Math.min(hi + 1, HORA_MAX);
+  document.getElementById('t-repetir').value = '1';
+  document.getElementById('t-obs').value = t?.observacion || '';
+  closeModal('modal-detalle');
+  openModal('modal-tarea');
+}
+async function guardarTarea() {
+  const zona_id = +document.getElementById('t-zona').value, profesor_id = +document.getElementById('t-prof').value;
+  const fecha = document.getElementById('t-fecha').value;
+  const hora_inicio = +document.getElementById('t-ini').value, hora_fin = +document.getElementById('t-fin').value;
+  const veces = +document.getElementById('t-repetir').value || 1;
+  const observacion = document.getElementById('t-obs').value.trim() || null;
+  if (!zona_id || !profesor_id || !fecha) { alert('Completa zona, profesor y fecha.'); return; }
+  if (parseISO(fecha).getDay() === 0) { alert('La programación es de lunes a sábado. Elige otra fecha.'); return; }
+  if (hora_fin <= hora_inicio) { alert('La hora de término debe ser posterior a la de inicio.'); return; }
+  const z = getZona(zona_id), p = getProf(profesor_id);
+  const det = `${z.nombre} · ${p.nombre} · ${hh(hora_inicio)}–${hh(hora_fin)}`;
+  const btn = document.getElementById('btn-guardar-tarea'); btn.disabled = true;
+  try {
+    if (editandoTareaId) {
+      const { data, error } = await supabaseClient.from('cln_tareas')
+        .update({ zona_id, profesor_id, fecha, hora_inicio, hora_fin, observacion }).eq('id', editandoTareaId).select().single();
+      if (error) throw error;
+      db.tareas[db.tareas.findIndex(x => x.id === editandoTareaId)] = data;
+      await logAudit('editar', 'tarea', `Limpieza modificada: ${det} · ${fmtFecha(fecha)}`);
+      toast('Limpieza actualizada');
+    } else {
+      const rows = [];
+      for (let i = 0; i < veces; i++) {
+        const d = parseISO(fecha); d.setDate(d.getDate() + 7 * i);
+        rows.push({ zona_id, profesor_id, fecha: iso(d), hora_inicio, hora_fin, observacion });
+      }
+      const { data, error } = await supabaseClient.from('cln_tareas').insert(rows).select();
+      if (error) throw error;
+      db.tareas.push(...data);
+      await logAudit('crear', 'tarea', `Limpieza programada: ${det} · ${fmtFecha(fecha)}${veces > 1 ? ` (se repite ${veces} semanas)` : ''}`);
+      toast(veces > 1 ? `${veces} limpiezas programadas` : 'Limpieza programada');
+    }
+    closeModal('modal-tarea');
+    renderCalendario();
+  } catch (e) { alert('Error al guardar: ' + (e.message || e)); }
+  finally { btn.disabled = false; }
+}
+
+// ===== DETALLE / FOTO =====
+function abrirDetalle(id) {
+  const t = db.tareas.find(x => x.id === id); if (!t) return;
+  detalleId = id; fotoBlob = null; fotoPreview = null;
+  const z = getZona(t.zona_id), p = getProf(t.profesor_id), e = estadoTarea(t);
+  document.getElementById('d-info').innerHTML =
+    `<dt>Zona</dt><dd>${esc(z?.nombre)}</dd><dt>Fecha</dt><dd>${fmtFecha(t.fecha)}</dd>
+     <dt>Horario</dt><dd>${hh(t.hora_inicio)} – ${hh(t.hora_fin)}</dd><dt>Profesor</dt><dd>${esc(p?.nombre)}</dd>
+     <dt>Estado</dt><dd><span class="badge ${BADGE[e]}">${ETIQ[e]}</span></dd>` +
+    (t.observacion ? `<dt>Instrucciones</dt><dd>${esc(t.observacion)}</dd>` : '') +
+    (t.realizada_at ? `<dt>Realizada el</dt><dd>${fmtFechaHora(t.realizada_at)}</dd>` : '');
+  document.getElementById('d-foto').innerHTML = t.foto_url
+    ? `<img class="tarea-foto" src="${esc(t.foto_url)}" alt="respaldo" onclick="window.open(this.src,'_blank')" title="Clic para ver en tamaño completo">` : '';
+  const futura = t.fecha > hoyISO(), pendiente = t.estado !== 'realizada';
+  document.getElementById('d-subir').style.display = pendiente && !futura ? '' : 'none';
+  renderPreviewFoto();
+  let btns = '';
+  if (rol === 'admin') {
+    if (pendiente) btns += `<button class="btn btn-secondary" onclick="openModalTarea(${t.id})">Editar</button>`;
+    else btns += `<button class="btn btn-secondary" onclick="reabrirTarea(${t.id})">Reabrir</button>`;
+    btns += `<button class="btn btn-danger" onclick="eliminarTarea(${t.id})">Eliminar</button>`;
+  }
+  btns += `<button class="btn btn-secondary" onclick="closeModal('modal-detalle')">Cerrar</button>`;
+  if (pendiente && !futura) btns += `<button class="btn btn-primary" id="btn-completar" onclick="completarTarea()">✔ Marcar como realizada</button>`;
+  if (pendiente && futura) btns = `<span style="color:var(--muted);font-size:0.8rem;margin-right:auto;">Aún no es la fecha: podrás subir la foto ese día.</span>` + btns;
+  document.getElementById('d-botones').innerHTML = btns;
+  openModal('modal-detalle');
+}
+function renderPreviewFoto() {
+  const pv = document.getElementById('upload-preview'), ph = document.getElementById('upload-placeholder');
+  document.getElementById('d-archivo').value = '';
+  if (!fotoPreview) { pv.style.display = 'none'; pv.innerHTML = ''; ph.style.display = 'flex'; return; }
+  ph.style.display = 'none'; pv.style.display = 'block';
+  pv.innerHTML = `<button class="upload-clear" onclick="quitarFoto(event)">✕</button><img src="${fotoPreview}" class="upload-preview-img" alt="foto">`;
+}
+function quitarFoto(e) { e.stopPropagation(); fotoBlob = null; fotoPreview = null; renderPreviewFoto(); }
+function comprimirImagen(file, max = 1600, calidad = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo procesar la imagen')), 'image/jpeg', calidad);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Imagen no válida')); };
+    img.src = url;
+  });
+}
+async function elegirFoto(ev) {
+  const f = ev.target.files[0]; if (!f) return;
+  if (!f.type.startsWith('image/')) { alert('Debe ser una imagen.'); ev.target.value = ''; return; }
+  try {
+    fotoBlob = await comprimirImagen(f);
+    fotoPreview = URL.createObjectURL(fotoBlob);
+    renderPreviewFoto();
+  } catch (e) { alert(e.message); }
+}
+async function borrarArchivo(url) {
+  try {
+    const marca = `/${BUCKET}/`, i = (url || '').indexOf(marca);
+    if (i >= 0) await supabaseClient.storage.from(BUCKET).remove([decodeURIComponent(url.slice(i + marca.length))]);
+  } catch (e) { console.warn('No se pudo borrar el archivo', e); }
+}
+async function completarTarea() {
+  const t = db.tareas.find(x => x.id === detalleId); if (!t) return;
+  if (!fotoBlob) { alert('Sube la foto de respaldo antes de marcar la limpieza como realizada.'); return; }
+  const btn = document.getElementById('btn-completar'); btn.disabled = true; btn.textContent = 'Subiendo...';
+  try {
+    const path = `${t.fecha}/${crypto.randomUUID()}.jpg`;
+    const up = await supabaseClient.storage.from(BUCKET).upload(path, fotoBlob, { contentType: 'image/jpeg' });
+    if (up.error) throw up.error;
+    const foto_url = supabaseClient.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    const { data, error } = await supabaseClient.from('cln_tareas')
+      .update({ estado: 'realizada', foto_url, foto_nombre: path, realizada_at: new Date().toISOString() }).eq('id', t.id).select().single();
+    if (error) { borrarArchivo(foto_url); throw error; }
+    db.tareas[db.tareas.findIndex(x => x.id === t.id)] = data;
+    await logAudit('completar', 'tarea', `Limpieza realizada con foto: ${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${hh(t.hora_inicio)}–${hh(t.hora_fin)} · ${fmtFecha(t.fecha)}`);
+    closeModal('modal-detalle'); renderCalendario(); toast('Limpieza registrada ✓');
+  } catch (e) {
+    alert('Error al subir: ' + (e.message || e));
+    btn.disabled = false; btn.textContent = '✔ Marcar como realizada';
+  }
+}
+async function reabrirTarea(id) {
+  const t = db.tareas.find(x => x.id === id);
+  if (!t || !confirm('¿Reabrir esta limpieza? Se eliminará su foto de respaldo.')) return;
+  const { data, error } = await supabaseClient.from('cln_tareas')
+    .update({ estado: 'pendiente', foto_url: null, foto_nombre: null, realizada_at: null }).eq('id', id).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  if (t.foto_url) borrarArchivo(t.foto_url);
+  db.tareas[db.tareas.findIndex(x => x.id === id)] = data;
+  await logAudit('editar', 'tarea', `Limpieza reabierta (foto eliminada): ${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${fmtFecha(t.fecha)} ${hh(t.hora_inicio)}`);
+  closeModal('modal-detalle'); renderCalendario(); renderHistorialSiVisible();
+}
+async function eliminarTarea(id) {
+  const t = db.tareas.find(x => x.id === id);
+  if (!t || !confirm('¿Eliminar esta limpieza programada?')) return;
+  const { error } = await supabaseClient.from('cln_tareas').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  if (t.foto_url) borrarArchivo(t.foto_url);
+  db.tareas = db.tareas.filter(x => x.id !== id);
+  await logAudit('eliminar', 'tarea', `Limpieza eliminada: ${getZona(t.zona_id)?.nombre} · ${getProf(t.profesor_id)?.nombre} · ${fmtFecha(t.fecha)} ${hh(t.hora_inicio)}–${hh(t.hora_fin)}`);
+  closeModal('modal-detalle'); renderCalendario(); renderHistorialSiVisible();
+}
+function renderHistorialSiVisible() { if (document.getElementById('view-historial').classList.contains('active')) renderHistorial(); }
+function verFoto(id) {
+  const t = db.tareas.find(x => x.id === id); if (!t?.foto_url) return;
+  document.getElementById('foto-contenido').innerHTML =
+    `<img class="tarea-foto" style="max-height:70vh" src="${esc(t.foto_url)}" alt="respaldo" onclick="window.open(this.src,'_blank')">`;
+  openModal('modal-foto');
+}
+
+// ===== HISTORIAL =====
+function poblarFiltrosHistorial() {
+  const zs = document.getElementById('h-zona'), ps = document.getElementById('h-prof');
+  const pz = zs.value, pp = ps.value;
+  zs.innerHTML = '<option value="">Todas</option>' + opciones(db.zonas);
+  ps.innerHTML = '<option value="">Todos</option>' + opciones(db.profesores);
+  zs.value = pz; ps.value = pp;
+  if (!document.getElementById('h-desde').value) {
+    const n = new Date();
+    document.getElementById('h-desde').value = iso(new Date(n.getFullYear(), n.getMonth(), 1));
+    document.getElementById('h-hasta').value = iso(new Date(n.getFullYear(), n.getMonth() + 1, 0));
+  }
+}
+function renderHistorial() {
+  const d = document.getElementById('h-desde').value, h = document.getElementById('h-hasta').value;
+  const z = document.getElementById('h-zona').value, p = document.getElementById('h-prof').value, e = document.getElementById('h-estado').value;
+  const list = db.tareas.filter(t => (!d || t.fecha >= d) && (!h || t.fecha <= h) && (!z || t.zona_id === +z) && (!p || t.profesor_id === +p) && (!e || estadoTarea(t) === e))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.hora_inicio - a.hora_inicio);
+  // KPIs sobre el filtro de fechas/zona/profesor (sin filtrar por estado)
+  const base = db.tareas.filter(t => (!d || t.fecha >= d) && (!h || t.fecha <= h) && (!z || t.zona_id === +z) && (!p || t.profesor_id === +p));
+  const real = base.filter(t => estadoTarea(t) === 'realizada').length, atr = base.filter(t => estadoTarea(t) === 'atrasada').length;
+  document.getElementById('kpi-prog').textContent = base.length;
+  document.getElementById('kpi-real').textContent = real;
+  document.getElementById('kpi-atr').textContent = atr;
+  document.getElementById('kpi-pct').textContent = (real + atr ? Math.round(real / (real + atr) * 100) : 0) + '%';
+  document.getElementById('tabla-historial').innerHTML = list.length ? list.slice(0, 300).map(t => {
+    const st = estadoTarea(t);
+    return `<tr><td>${fmtFecha(t.fecha)}</td><td>${hh(t.hora_inicio)} – ${hh(t.hora_fin)}</td><td>${esc(getZona(t.zona_id)?.nombre)}</td>
+      <td>${esc(getProf(t.profesor_id)?.nombre)}</td><td><span class="badge ${BADGE[st]}">${ETIQ[st]}</span></td>
+      <td>${t.realizada_at ? fmtFechaHora(t.realizada_at) : '—'}</td>
+      <td>${t.foto_url ? `<a class="comp-badge" onclick="verFoto(${t.id})">📷 Ver</a>` : `<a class="comp-badge" style="background:transparent;color:var(--muted)" onclick="abrirDetalle(${t.id})">Abrir</a>`}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Sin limpiezas en el filtro seleccionado.</td></tr>';
+}
+
+// ===== CONFIG: ZONAS Y PROFESORES =====
+function renderConfig() {
+  document.getElementById('tabla-zonas').innerHTML = db.zonas.map(z => `<tr>
+    <td><span class="cal-chip zc-${z.orden}" style="display:inline-block;width:auto;cursor:default;padding:2px 8px">${z.orden}</span></td><td>${esc(z.nombre)}</td>
+    <td><button class="btn btn-secondary btn-sm" onclick="editarZona(${z.id})">Renombrar</button></td></tr>`).join('');
+  document.getElementById('tabla-profes').innerHTML = db.profesores.length ? db.profesores.map(p => `<tr>
+    <td>${esc(p.nombre)}</td><td><span class="badge ${p.activo ? 'badge-done' : 'badge-warn'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+    <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="toggleProfesor(${p.id})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+    <button class="btn btn-danger btn-sm" onclick="eliminarProfesor(${p.id})">Eliminar</button></td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:var(--muted)">Agrega al primer profesor con "+ Nuevo".</td></tr>';
+}
+function editarZona(id) { editandoZonaId = id; document.getElementById('z-nombre').value = getZona(id).nombre; openModal('modal-zona'); }
+async function guardarZona() {
+  const nombre = document.getElementById('z-nombre').value.trim();
+  if (!nombre) { alert('Ingresa un nombre.'); return; }
+  const z = getZona(editandoZonaId), antes = z.nombre;
+  const { data, error } = await supabaseClient.from('cln_zonas').update({ nombre }).eq('id', z.id).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.zonas[db.zonas.findIndex(x => x.id === z.id)] = data;
+  await logAudit('editar', 'zona', `Zona renombrada: "${antes}" → "${nombre}"`);
+  closeModal('modal-zona'); renderConfig();
+}
+function openModalProfesor() { document.getElementById('p-nombre').value = ''; openModal('modal-profesor'); }
+async function guardarProfesor() {
+  const nombre = document.getElementById('p-nombre').value.trim();
+  if (!nombre) { alert('Ingresa un nombre.'); return; }
+  const { data, error } = await supabaseClient.from('cln_profesores').insert({ nombre }).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.profesores.push(data); db.profesores.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  await logAudit('crear', 'profesor', 'Profesor creado: ' + nombre);
+  closeModal('modal-profesor'); renderConfig();
+}
+async function toggleProfesor(id) {
+  const p = getProf(id);
+  const { data, error } = await supabaseClient.from('cln_profesores').update({ activo: !p.activo }).eq('id', id).select().single();
+  if (error) { alert('Error: ' + error.message); return; }
+  db.profesores[db.profesores.findIndex(x => x.id === id)] = data;
+  await logAudit('editar', 'profesor', `Profesor ${data.activo ? 'activado' : 'desactivado'}: ${p.nombre}`);
+  renderConfig();
+}
+async function eliminarProfesor(id) {
+  const p = getProf(id);
+  if (db.tareas.some(t => t.profesor_id === id)) { alert('Tiene limpiezas asociadas. Mejor desactívalo para conservar el historial.'); return; }
+  if (!confirm(`¿Eliminar a "${p.nombre}"?`)) return;
+  const { error } = await supabaseClient.from('cln_profesores').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  db.profesores = db.profesores.filter(x => x.id !== id);
+  await logAudit('eliminar', 'profesor', 'Profesor eliminado: ' + p.nombre);
+  renderConfig();
+}
+
+// ===== AUDITORÍA =====
+function renderAuditoria() {
+  document.getElementById('tabla-auditoria').innerHTML = db.auditoria.length ? db.auditoria.map(a => `<tr>
+    <td>${fmtFechaHora(a.ts)}</td><td>${esc(a.accion)}</td><td>${esc(a.entidad)}</td><td>${esc(a.detalle)}</td></tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Sin registros.</td></tr>';
+}
+
+// ===== INICIO =====
+async function iniciarApp() {
+  try { await cargarTodo(); } catch (e) { console.error(e); mostrarErrorConexion(e); return; }
+  semanaInicio = lunesDe(new Date());
+  showView('calendario');
+}
+const rolGuardado = leerRol();
+if (rolGuardado === 'admin' || rolGuardado === 'profesor') { aplicarRol(rolGuardado); iniciarApp(); }
+else setTimeout(() => document.getElementById('login-clave')?.focus(), 50);
+</script>
+</body>
+</html>
