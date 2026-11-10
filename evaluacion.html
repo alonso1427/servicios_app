@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Evalúa tu clase</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --bg:#0f0f0f; --surface:#181818; --surface2:#222; --border:#2a2a2a; --accent:#e8ff47; --text:#f0f0f0; --muted:#8a8a8a; --danger:#ff4444; --success:#4caf50; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+  header { background:var(--surface); border-bottom:2px solid var(--accent); padding:14px 16px; text-align:center; }
+  header h1 { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:3px; color:var(--accent); line-height:1; }
+  header p { font-size:0.78rem; color:var(--muted); margin-top:4px; }
+  .wrap { max-width:560px; margin:0 auto; padding:18px 14px 110px; }
+  .paso { font-family:'Bebas Neue',sans-serif; letter-spacing:1.5px; font-size:1.25rem; margin:6px 0 10px; }
+  .paso b { color:var(--accent); font-weight:400; }
+  .profes { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:22px; }
+  .profe { background:var(--surface); border:1.5px solid var(--border); color:var(--text); border-radius:12px; padding:14px 8px; font:inherit; font-size:0.95rem; cursor:pointer; text-align:center; }
+  .profe.sel { background:var(--accent); color:#111; border-color:var(--accent); font-weight:600; }
+  .preg { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 12px 12px; margin-bottom:12px; }
+  .preg.falta { border-color:var(--danger); }
+  .preg-txt { font-size:0.95rem; line-height:1.35; margin-bottom:12px; }
+  .preg-txt span { color:var(--accent); font-family:'Bebas Neue',sans-serif; margin-right:6px; letter-spacing:1px; }
+  .puntos { display:flex; justify-content:space-between; gap:4px; }
+  .punto { flex:1; max-width:48px; aspect-ratio:1; border-radius:50%; border:2px solid #3a3a3a; background:var(--surface2); color:var(--muted); font:inherit; font-size:0.95rem; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .punto.sel { background:var(--accent); border-color:var(--accent); color:#111; transform:scale(1.1); }
+  .escala { display:flex; justify-content:space-between; font-size:0.68rem; color:var(--muted); margin-top:7px; }
+  textarea { width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:12px; padding:12px; font:inherit; font-size:0.92rem; min-height:90px; resize:vertical; }
+  textarea:focus { outline:none; border-color:var(--accent); }
+  .barra { position:fixed; left:0; right:0; bottom:0; background:var(--surface); border-top:1px solid var(--border); padding:10px 14px calc(10px + env(safe-area-inset-bottom)); }
+  .barra-in { max-width:560px; margin:0 auto; display:flex; align-items:center; gap:12px; }
+  .prog { flex:1; font-size:0.74rem; color:var(--muted); }
+  .prog-bar { height:5px; background:var(--surface2); border-radius:3px; margin-top:5px; overflow:hidden; }
+  .prog-fill { height:100%; background:var(--accent); width:0; transition:width .25s; }
+  .btn { background:var(--accent); color:#111; border:none; border-radius:12px; padding:13px 22px; font:inherit; font-weight:600; font-size:0.95rem; cursor:pointer; }
+  .btn:disabled { opacity:0.5; }
+  .btn-sec { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .aviso { background:rgba(255,68,68,0.12); border:1px solid var(--danger); color:#ffb3b3; padding:10px 12px; border-radius:10px; font-size:0.85rem; margin-bottom:14px; }
+  .centro { text-align:center; padding:60px 10px; }
+  .centro .ico { font-size:3.2rem; margin-bottom:14px; }
+  .centro h2 { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:2px; color:var(--accent); margin-bottom:8px; }
+  .centro p { color:var(--muted); font-size:0.95rem; margin-bottom:22px; line-height:1.5; }
+  .contador { text-align:right; font-size:0.7rem; color:var(--muted); margin-top:4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Evalúa tu clase</h1>
+  <p>Toma menos de 1 minuto · tu opinión nos ayuda a mejorar</p>
+</header>
+<div class="wrap" id="app"><div class="centro"><p>Cargando…</p></div></div>
+<script>
+const SUPABASE_URL = 'https://wyyvgomzrfjcqbdpfbyu.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5eXZnb216cmZqY3FiZHBmYnl1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NzAzMzQsImV4cCI6MjEwMDE0NjMzNH0.spUP4vOXSpXnDR9QH9KrDX8sHNqvVf9LC1tsAjcUZOI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let profesores = [], preguntas = [], profeSel = null, notas = {}, enviando = false;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const app = document.getElementById('app');
+const ETIQ = ['', 'Muy malo', 'Malo', 'Regular', 'Aceptable', 'Bueno', 'Muy bueno', 'Excelente'];
+
+async function cargar() {
+  const [p, q] = await Promise.all([
+    supabaseClient.from('ev_profesores').select('id,nombre').eq('activo', true).order('nombre'),
+    supabaseClient.from('ev_preguntas').select('id,texto,orden').eq('activa', true).order('orden')
+  ]);
+  if (p.error) throw p.error; if (q.error) throw q.error;
+  profesores = p.data; preguntas = q.data;
+}
+
+function render() {
+  if (!profesores.length || !preguntas.length) {
+    app.innerHTML = '<div class="centro"><div class="ico">🛠️</div><h2>Evaluación no disponible</h2><p>Por ahora no hay clases para evaluar. Vuelve a intentarlo más tarde.</p></div>';
+    return;
+  }
+  app.innerHTML = `
+    <div id="aviso"></div>
+    <div class="paso"><b>1.</b> ¿Quién fue tu profesor?</div>
+    <div class="profes" id="profes">${profesores.map(p => `<button class="profe${p.id === profeSel ? ' sel' : ''}" data-id="${p.id}">${esc(p.nombre)}</button>`).join('')}</div>
+    <div class="paso"><b>2.</b> Califica de 1 a 7</div>
+    <div class="escala" style="margin:-4px 2px 10px"><span>1 = Muy malo</span><span>7 = Excelente</span></div>
+    ${preguntas.map((q, i) => `<div class="preg" id="preg-${q.id}"><div class="preg-txt"><span>${i + 1}.</span>${esc(q.texto)}</div>
+      <div class="puntos">${[1, 2, 3, 4, 5, 6, 7].map(n => `<button class="punto${notas[q.id] === n ? ' sel' : ''}" data-q="${q.id}" data-n="${n}" aria-label="${n}">${n}</button>`).join('')}</div></div>`).join('')}
+    <div class="paso"><b>3.</b> Comentario <span style="font-family:'DM Sans';font-size:0.75rem;color:var(--muted);letter-spacing:0">(opcional)</span></div>
+    <textarea id="coment" maxlength="500" placeholder="¿Algo que quieras contarnos?"></textarea>
+    <div class="contador"><span id="cont">0</span>/500</div>
+    <div class="barra"><div class="barra-in">
+      <div class="prog"><span id="prog-txt"></span><div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div></div>
+      <button class="btn" id="btn-enviar">Enviar</button>
+    </div></div>`;
+  document.getElementById('profes').onclick = e => { const b = e.target.closest('.profe'); if (!b) return; profeSel = +b.dataset.id; document.querySelectorAll('.profe').forEach(x => x.classList.toggle('sel', +x.dataset.id === profeSel)); progreso(); };
+  app.querySelectorAll('.preg').forEach(c => c.onclick = e => {
+    const b = e.target.closest('.punto'); if (!b) return;
+    notas[+b.dataset.q] = +b.dataset.n;
+    c.querySelectorAll('.punto').forEach(x => x.classList.toggle('sel', +x.dataset.n === notas[+b.dataset.q]));
+    c.classList.remove('falta'); progreso();
+  });
+  document.getElementById('coment').oninput = e => document.getElementById('cont').textContent = e.target.value.length;
+  document.getElementById('btn-enviar').onclick = enviar;
+  progreso();
+}
+function progreso() {
+  const hechas = preguntas.filter(q => notas[q.id]).length + (profeSel ? 1 : 0), total = preguntas.length + 1;
+  document.getElementById('prog-txt').textContent = `${hechas} de ${total} completado`;
+  document.getElementById('prog-fill').style.width = Math.round(hechas / total * 100) + '%';
+}
+function aviso(msg) { document.getElementById('aviso').innerHTML = msg ? `<div class="aviso">${esc(msg)}</div>` : ''; }
+
+async function enviar() {
+  if (enviando) return;
+  if (!profeSel) { aviso('Elige a tu profesor.'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const faltan = preguntas.filter(q => !notas[q.id]);
+  if (faltan.length) {
+    aviso(`Te faltan ${faltan.length} pregunta${faltan.length > 1 ? 's' : ''} por calificar.`);
+    faltan.forEach(q => document.getElementById('preg-' + q.id).classList.add('falta'));
+    document.getElementById('preg-' + faltan[0].id).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  aviso('');
+  enviando = true;
+  const btn = document.getElementById('btn-enviar'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const respuestas = preguntas.map(q => ({ pregunta_id: q.id, texto: q.texto, nota: notas[q.id] }));
+  const promedio = Math.round(respuestas.reduce((s, r) => s + r.nota, 0) / respuestas.length * 100) / 100;
+  const comentario = document.getElementById('coment').value.trim().slice(0, 500) || null;
+  const { error } = await supabaseClient.from('ev_evaluaciones').insert({ profesor_id: profeSel, promedio, respuestas, comentario });
+  enviando = false;
+  if (error) { console.error(error); btn.disabled = false; btn.textContent = 'Enviar'; aviso('No pudimos enviar tu evaluación. Revisa tu conexión e inténtalo otra vez.'); return; }
+  app.innerHTML = `<div class="centro"><div class="ico">🙌</div><h2>¡Gracias!</h2><p>Recibimos tu evaluación. Nos ayuda a seguir mejorando las clases.</p><button class="btn btn-sec" onclick="otra()">Evaluar otra clase</button></div>`;
+  window.scrollTo({ top: 0 });
+}
+function otra() { profeSel = null; notas = {}; render(); }
+
+(async () => {
+  try { await cargar(); render(); }
+  catch (e) { console.error(e); app.innerHTML = '<div class="centro"><div class="ico">⚠️</div><h2>Sin conexión</h2><p>No pudimos cargar el formulario. Intenta nuevamente en unos minutos.</p></div>'; }
+})();
+</script>
+</body>
+</html>
