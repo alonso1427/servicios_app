@@ -315,6 +315,29 @@
   textarea.form-control { resize: vertical; min-height: 80px; }
   select.form-control { cursor: pointer; }
   select.form-control option { background: var(--surface2); }
+
+  /* FILTROS POR COLUMNA (Contratos) */
+  tr.col-filters th { padding-top: 0; padding-bottom: 10px; }
+  .col-filter {
+    width: 100%;
+    min-width: 70px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    padding: 5px 8px;
+    outline: none;
+  }
+  .col-filter:focus { border-color: var(--accent); }
+  .col-filter::placeholder { color: var(--muted); opacity: 0.7; }
+  select.col-filter { cursor: pointer; }
+  select.col-filter option { background: var(--surface2); }
+  .col-filter.is-active { border-color: var(--accent); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
   /* TABLES */
@@ -614,6 +637,33 @@
               <th>Comprobante</th>
               <th>Estado</th>
               <th>Acciones</th>
+            </tr>
+            <tr class="col-filters">
+              <th><input class="col-filter" data-col="cliente" placeholder="Buscar…" oninput="setFiltroContrato(this)"></th>
+              <th><select class="col-filter" data-col="profe" id="cf-profe" onchange="setFiltroContrato(this)"><option value="">Todos</option></select></th>
+              <th><input class="col-filter" data-col="sesiones" placeholder="ej: 8/10" oninput="setFiltroContrato(this)"></th>
+              <th><select class="col-filter" data-col="progreso" onchange="setFiltroContrato(this)">
+                <option value="">Todos</option>
+                <option value="0-49">0–49%</option>
+                <option value="50-69">50–69%</option>
+                <option value="70-99">70–99%</option>
+                <option value="100">100%</option>
+              </select></th>
+              <th><input class="col-filter" data-col="monto" placeholder="Buscar…" oninput="setFiltroContrato(this)"></th>
+              <th><input class="col-filter" data-col="valorSesion" placeholder="Buscar…" oninput="setFiltroContrato(this)"></th>
+              <th><input class="col-filter" data-col="comision" placeholder="ej: 20" oninput="setFiltroContrato(this)"></th>
+              <th><input class="col-filter" data-col="neto" placeholder="Buscar…" oninput="setFiltroContrato(this)"></th>
+              <th><select class="col-filter" data-col="comprobante" onchange="setFiltroContrato(this)">
+                <option value="">Todos</option>
+                <option value="con">Con archivo</option>
+                <option value="sin">Sin archivo</option>
+              </select></th>
+              <th><select class="col-filter" data-col="estado" onchange="setFiltroContrato(this)">
+                <option value="">Todos</option>
+                <option value="Activo">Activo</option>
+                <option value="Completado">Completado</option>
+              </select></th>
+              <th><button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosContratos()">Limpiar</button></th>
             </tr>
           </thead>
           <tbody id="tabla-contratos"></tbody>
@@ -1322,17 +1372,75 @@ function renderDashboard() {
 }
 
 // ===== CONTRATOS =====
+// Filtros por columna de la tabla de contratos
+const filtrosContratos = {};
+
+function setFiltroContrato(el) {
+  const v = (el.value || '').trim();
+  if (v) filtrosContratos[el.dataset.col] = v; else delete filtrosContratos[el.dataset.col];
+  el.classList.toggle('is-active', !!v);
+  renderContratos();
+}
+
+function limpiarFiltrosContratos() {
+  Object.keys(filtrosContratos).forEach(k => delete filtrosContratos[k]);
+  document.querySelectorAll('#view-contratos .col-filter').forEach(el => { el.value = ''; el.classList.remove('is-active'); });
+  renderContratos();
+}
+
+function poblarFiltroProfeContratos() {
+  const sel = document.getElementById('cf-profe');
+  if (!sel) return;
+  const actual = sel.value;
+  sel.innerHTML = '<option value="">Todos</option>' + db.profes.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('');
+  if (db.profes.some(p => String(p.id) === actual)) sel.value = actual;
+  else if (actual) { sel.value = ''; delete filtrosContratos.profe; sel.classList.remove('is-active'); }
+}
+
+function contratoPasaFiltros(c, d) {
+  const f = filtrosContratos;
+  const norm = s => String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const contiene = (valor, filtro) => norm(valor).includes(norm(filtro));
+  // Para montos: compara solo dígitos, así "50000" encuentra "$50.000"
+  const contieneNum = (valor, filtro) => {
+    const fd = String(filtro).replace(/\D/g, '');
+    return fd ? String(valor).replace(/\D/g, '').includes(fd) : contiene(valor, filtro);
+  };
+  if (f.cliente && !contiene(d.cliente.nombre, f.cliente)) return false;
+  if (f.profe && String(c.profeId) !== f.profe) return false;
+  if (f.sesiones && !contiene(`${d.sesRealizadas}/${c.sesionesTotal}`, f.sesiones)) return false;
+  if (f.progreso) {
+    const [min, max] = f.progreso.split('-').map(Number);
+    if (d.pct < min || d.pct > (max ?? min)) return false;
+  }
+  if (f.monto && !contieneNum(fmt(c.monto), f.monto)) return false;
+  if (f.valorSesion && !contieneNum(fmt(valorSesion(c)), f.valorSesion)) return false;
+  if (f.comision && !contieneNum(`${c.comisionGym || 0}%`, f.comision)) return false;
+  if (f.neto && !contieneNum(fmt(valorProfesor(c)), f.neto)) return false;
+  if (f.comprobante === 'con' && !c.comprobante) return false;
+  if (f.comprobante === 'sin' && c.comprobante) return false;
+  if (f.estado && d.estadoTxt !== f.estado) return false;
+  return true;
+}
+
 function renderContratos() {
   const tbody = document.getElementById('tabla-contratos');
+  poblarFiltroProfeContratos();
   if (!db.contratos.length) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay contratos. Agrega el primero.</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No hay contratos. Agrega el primero.</div></div></td></tr>`;
     return;
   }
-  tbody.innerHTML = db.contratos.map(c => {
-    const profe = getProfe(c.profeId);
-    const cliente = getCliente(c.clienteId);
+  const filas = db.contratos.map(c => {
     const sesRealizadas = getSesionesByContrato(c.id).length;
     const pct = Math.min(100, Math.round(sesRealizadas / c.sesionesTotal * 100));
+    return { c, d: { profe: getProfe(c.profeId), cliente: getCliente(c.clienteId), sesRealizadas, pct, estadoTxt: pct >= 100 ? 'Completado' : 'Activo' } };
+  }).filter(({ c, d }) => contratoPasaFiltros(c, d));
+  if (!filas.length) {
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Ningún contrato coincide con los filtros.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filas.map(({ c, d }) => {
+    const { profe, cliente, sesRealizadas, pct } = d;
     const fillClass = pct >= 100 ? 'done' : pct >= 70 ? 'warning' : '';
     const estado = pct >= 100 ? '<span class="badge badge-done">Completado</span>' : '<span class="badge badge-active">Activo</span>';
     const compCell = c.comprobante
