@@ -183,6 +183,51 @@
   .card-meta strong { color: var(--text); }
   .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+  /* LISTADO DE CONTRATOS (Dashboard) */
+  .contract-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .contract-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.7fr) minmax(0, 1.3fr) minmax(0, 1.2fr) 250px;
+    gap: 18px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    transition: background 0.15s;
+  }
+  .contract-row:last-child { border-bottom: none; }
+  .contract-row:hover { background: var(--surface2); }
+  .contract-row::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--accent); opacity: 0; transition: opacity 0.15s;
+  }
+  .contract-row:hover::before { opacity: 1; }
+  .contract-row.head {
+    background: var(--surface2); padding-top: 10px; padding-bottom: 10px;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600;
+  }
+  .contract-row.head::before { display: none; }
+  .cr-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; letter-spacing: 0.8px; line-height: 1.1; }
+  .cr-sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+  .cr-sub strong { color: var(--text); font-weight: 600; }
+  .cr-money { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+  .cr-money strong { color: var(--text); font-family: 'DM Mono', monospace; }
+  .cr-dates { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+  .cr-progress { display: flex; flex-direction: column; gap: 6px; }
+  .cr-progress .progress-bar { margin: 0; }
+  .cr-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  @media (max-width: 900px) {
+    .contract-row { grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+    .contract-row.head { display: none; }
+    .cr-actions { justify-content: flex-start; grid-column: 1 / -1; }
+  }
+
   /* PROGRESS BAR */
   .progress-bar {
     height: 4px;
@@ -406,7 +451,17 @@
   .filter-bar .form-group { margin-bottom: 0; flex: 1; min-width: 140px; }
 
   /* CALENDARIO SEMANAL */
-  .calendar-table { border-collapse: collapse; width: 100%; min-width: 1300px; }
+  .calendar-table { border-collapse: collapse; width: 100%; min-width: 900px; table-layout: fixed; }
+  .calendar-table thead th.cal-day-col { color: var(--text); font-size: 0.75rem; }
+  .calendar-table thead th.cal-day-col .cal-day-date { text-transform: none; }
+  .cal-hour-head {
+    background: var(--surface2); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.75rem;
+    width: 70px; padding: 6px 8px; white-space: nowrap; vertical-align: top;
+  }
+  .calendar-table thead th.cal-hour-head { width: 70px; }
+  .calendar-table td.cal-hour-head { padding: 6px 8px; }
+  .calendar-table thead th.cal-today, .calendar-table td.cal-today { background: rgba(232,255,71,0.06); }
+  .calendar-table thead th.cal-today { color: var(--accent); }
   .calendar-table th, .calendar-table td { border: 1px solid var(--border); padding: 0; text-align: center; }
   .calendar-table thead th {
     background: var(--surface2); color: var(--muted); font-size: 0.7rem;
@@ -417,7 +472,7 @@
     padding: 10px 10px; white-space: nowrap; min-width: 110px; text-align: left;
   }
   .cal-day-date { display: block; color: var(--muted); font-weight: 400; font-size: 0.7rem; margin-top: 2px; }
-  .cal-cell { min-width: 82px; height: 54px; vertical-align: top; padding: 3px; }
+  .cal-cell { height: 48px; vertical-align: top; padding: 3px; }
   tr.cal-today .cal-day-head, tr.cal-today .cal-cell { background: rgba(232,255,71,0.06); }
   .cal-session {
     background: rgba(232,255,71,0.16);
@@ -434,7 +489,7 @@
   .cal-session:hover { background: rgba(232,255,71,0.32); }
   .cal-session-name {
     display: block; font-weight: 600; color: var(--text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 92px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .cal-session-num { display: block; color: var(--accent); font-size: 0.64rem; letter-spacing: 0.3px; }
   .cal-range-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--accent); letter-spacing: 1px; white-space: nowrap; }
@@ -610,7 +665,7 @@
       </div>
       <div class="stats-row" id="stats-row"></div>
       <div class="section-title" style="font-size:1.4rem;margin-bottom:16px;">Contratos <span>Activos</span></div>
-      <div class="cards-grid" id="dashboard-contratos"></div>
+      <div class="contract-list" id="dashboard-contratos"></div>
     </div>
 
     <!-- ===================== CONTRATOS ===================== -->
@@ -1342,7 +1397,11 @@ function renderDashboard() {
   const activos = db.contratos.filter(c => c.activo);
   if (!activos.length) { cont.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Sin contratos activos</div></div>'; return; }
 
-  cont.innerHTML = activos.map(c => {
+  const encabezado = `
+    <div class="contract-row head">
+      <div>Cliente / Profesor</div><div>Montos</div><div>Vigencia</div><div>Sesiones</div><div style="text-align:right;">Acciones</div>
+    </div>`;
+  cont.innerHTML = encabezado + activos.map(c => {
     const profe = getProfe(c.profeId);
     const cliente = getCliente(c.clienteId);
     const sesRealizadas = getSesionesByContrato(c.id).length;
@@ -1350,19 +1409,23 @@ function renderDashboard() {
     const color = pct >= 100 ? 'done' : pct >= 70 ? 'warn' : 'active';
     const fillClass = pct >= 100 ? 'done' : pct >= 70 ? 'warning' : '';
     return `
-      <div class="card">
-        <div class="card-label">Contrato activo</div>
-        <div class="card-title">${cliente.nombre || '?'}</div>
-        <div class="card-meta">
-          <span>👟 Profe: <strong>${profe.nombre || '?'}</strong></span>
-          <span>💰 <strong>${fmt(c.monto)}</strong> · ${fmt(valorSesion(c))}/sesión (neto profe ${fmt(valorProfesor(c))}, gym ${c.comisionGym || 0}%)</span>
-          <span>📅 ${fmtFecha(c.inicio)} → ${fmtFecha(c.fin)}</span>
+      <div class="contract-row">
+        <div>
+          <div class="cr-name">${cliente.nombre || '?'}</div>
+          <div class="cr-sub">👟 <strong>${profe.nombre || '?'}</strong></div>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--muted);margin-bottom:4px;">
-          <span>Sesiones</span><span class="badge badge-${color}">${sesRealizadas}/${c.sesionesTotal}</span>
+        <div class="cr-money">
+          💰 <strong>${fmt(c.monto)}</strong> · ${fmt(valorSesion(c))}/sesión<br>
+          <span style="font-size:0.72rem;">neto profe ${fmt(valorProfesor(c))} · gym ${c.comisionGym || 0}%</span>
         </div>
-        <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
-        <div class="card-actions" style="margin-top:12px;">
+        <div class="cr-dates">📅 ${fmtFecha(c.inicio)} → ${fmtFecha(c.fin)}</div>
+        <div class="cr-progress">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:var(--muted);">
+            <span>${pct}%</span><span class="badge badge-${color}">${sesRealizadas}/${c.sesionesTotal}</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+        </div>
+        <div class="cr-actions">
           <button class="btn btn-secondary btn-sm" onclick="openModalSesionConContrato(${c.id})">+ Sesión</button>
           ${c.comprobante ? `<a class="comp-badge" onclick="verComprobante(${c.id})">📎 Comprobante</a>` : ''}
         </div>
@@ -2082,16 +2145,19 @@ function renderCalendario() {
     matriz[dayIdx][hora - 6].push(s);
   });
 
-  document.getElementById('cal-thead').innerHTML =
-    `<tr><th class="cal-day-head">Día</th>${HORAS_CAL.map(h => `<th>${String(h).padStart(2,'0')}:00</th>`).join('')}</tr>`;
-
+  // Vista traspuesta: días como columnas, bloques horarios como filas
   const hoyIso = toLocalISO(new Date());
-  document.getElementById('tabla-calendario').innerHTML = weekDates.map((d, dayIdx) => {
-    const iso = isoSemana[dayIdx];
-    const celdas = HORAS_CAL.map((h, hourIdx) => {
+  const hoyClase = dayIdx => isoSemana[dayIdx] === hoyIso ? ' cal-today' : '';
+  document.getElementById('cal-thead').innerHTML =
+    `<tr><th class="cal-hour-head">Hora</th>${weekDates.map((d, dayIdx) =>
+      `<th class="cal-day-col${hoyClase(dayIdx)}">${DIAS_SEMANA[dayIdx]}<span class="cal-day-date">${fmtFechaCorta(d)}</span></th>`
+    ).join('')}</tr>`;
+
+  document.getElementById('tabla-calendario').innerHTML = HORAS_CAL.map((h, hourIdx) => {
+    const celdas = weekDates.map((d, dayIdx) => {
       const sesionesCelda = matriz[dayIdx][hourIdx];
-      if (!sesionesCelda.length) return `<td class="cal-cell"></td>`;
-      return `<td class="cal-cell">${sesionesCelda.map(s => {
+      if (!sesionesCelda.length) return `<td class="cal-cell${hoyClase(dayIdx)}"></td>`;
+      return `<td class="cal-cell${hoyClase(dayIdx)}">${sesionesCelda.map(s => {
         const c = getContrato(s.contratoId);
         const cliente = getCliente(c.clienteId);
         const numero = getSesionNumero(s);
@@ -2101,8 +2167,8 @@ function renderCalendario() {
         </div>`;
       }).join('')}</td>`;
     }).join('');
-    return `<tr class="${iso === hoyIso ? 'cal-today' : ''}">
-      <td class="cal-day-head">${DIAS_SEMANA[dayIdx]}<span class="cal-day-date">${fmtFechaCorta(d)}</span></td>
+    return `<tr>
+      <td class="cal-hour-head">${String(h).padStart(2,'0')}:00</td>
       ${celdas}
     </tr>`;
   }).join('');
