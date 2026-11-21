@@ -487,6 +487,26 @@
     transition: background 0.15s;
   }
   .cal-session:hover { background: rgba(232,255,71,0.32); }
+  /* Sesión dentro del horario laboral del profesor */
+  .cal-session.en-horario { background: rgba(255,68,68,0.22); border-left-color: #ff4444; }
+  .cal-session.en-horario:hover { background: rgba(255,68,68,0.38); }
+  .cal-session.en-horario .cal-session-num { color: #ff7a7a; }
+  .cal-legend { display: flex; gap: 18px; align-items: center; font-size: 0.75rem; color: var(--muted); margin: 0 0 12px; flex-wrap: wrap; }
+  .cal-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  /* Horario laboral del profesor */
+  .horario-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .horario-row .form-control { padding: 8px 10px; font-size: 0.85rem; color-scheme: dark; }
+  .horario-tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .horario-resumen { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+  .tag-laboral {
+    display: inline-block; background: rgba(255,68,68,0.15); color: #ff6b6b; border: 1px solid rgba(255,68,68,0.35);
+    border-radius: 20px; padding: 1px 8px; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.3px; margin-left: 6px; vertical-align: 1px;
+  }
+  .laboral-stat { font-size: 0.78rem; margin-top: 6px; font-weight: 600; }
+  .laboral-stat.mal { color: #ff6b6b; }
+  .laboral-stat.bien { color: var(--success); }
+  .laboral-stat.nd { color: var(--muted); font-weight: 400; }
   .cal-session-name {
     display: block; font-weight: 600; color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -795,6 +815,10 @@
         </div>
         <div class="cal-range-label" id="cal-rango" style="margin-left:auto;"></div>
       </div>
+      <div class="cal-legend">
+        <span><i style="background:rgba(232,255,71,0.3);border-left:3px solid var(--accent);"></i>Fuera del horario laboral del profesor</span>
+        <span><i style="background:rgba(255,68,68,0.35);border-left:3px solid #ff4444;"></i>Dentro del horario laboral del profesor</span>
+      </div>
       <div class="table-wrap">
         <table class="calendar-table">
           <thead id="cal-thead"></thead>
@@ -848,7 +872,7 @@
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nombre</th><th>Email</th><th></th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Horario laboral</th><th></th></tr></thead>
               <tbody id="tabla-profes"></tbody>
             </table>
           </div>
@@ -1046,7 +1070,7 @@
 <div class="modal-overlay" id="modal-profe">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">NUEVO PROFESOR</span>
+      <span class="modal-title" id="modal-profe-titulo">NUEVO PROFESOR</span>
       <button class="modal-close" onclick="closeModal('modal-profe')">✕</button>
     </div>
     <div class="modal-body">
@@ -1061,6 +1085,15 @@
       <div class="form-group">
         <label class="form-label">Teléfono</label>
         <input type="text" class="form-control" id="p-telefono" placeholder="+56 9 1234 5678">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Horario laboral en el gimnasio</label>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:10px;">Los personalizados que caigan dentro de estos tramos se marcarán en rojo. Puedes agregar varios tramos por día (ej: mañana y tarde).</div>
+        <div id="p-horario"></div>
+        <div class="horario-tools">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="agregarTramoHorario()">+ Agregar tramo</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="presetHorarioLunVie()">Lun a Vie 09:00–18:00</button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -1260,7 +1293,10 @@ async function cargarTodo() {
 async function fetchProfes() {
   const { data, error } = await supabaseClient.from('profes').select('*').order('nombre');
   if (error) { console.error(error); mostrarErrorConexion(error); return []; }
-  return data.map(r => ({ id: r.id, nombre: r.nombre, email: r.email, telefono: r.telefono }));
+  return data.map(r => ({
+    id: r.id, nombre: r.nombre, email: r.email, telefono: r.telefono,
+    horario: Array.isArray(r.horario_laboral) ? r.horario_laboral : []
+  }));
 }
 
 async function fetchClientes() {
@@ -1865,21 +1901,24 @@ function calcularPagos() {
 
     const profe = getProfe(c.profeId);
     const cliente = getCliente(c.clienteId);
-    if (!agrupado[c.profeId]) agrupado[c.profeId] = { profe, detalles: [], totalBruto: 0, totalGym: 0, totalNeto: 0 };
+    if (!agrupado[c.profeId]) agrupado[c.profeId] = { profe, detalles: [], totalBruto: 0, totalGym: 0, totalNeto: 0, enHorario: 0 };
 
     const bruto = valorSesion(c);
     const neto = valorProfesor(c);
     const gymCut = bruto - neto;
+    const enHorario = sesionEnHorarioLaboral(s);
     agrupado[c.profeId].totalBruto += bruto;
     agrupado[c.profeId].totalGym += gymCut;
     agrupado[c.profeId].totalNeto += neto;
+    if (enHorario) agrupado[c.profeId].enHorario++;
     agrupado[c.profeId].detalles.push({
       cliente: cliente.nombre,
       fecha: s.fecha,
       hora: s.hora,
       bruto, neto, gymCut,
       comisionPct: c.comisionGym || 0,
-      comentario: s.comentario
+      comentario: s.comentario,
+      enHorario
     });
   });
 
@@ -1893,8 +1932,22 @@ function calcularPagos() {
 
   const totalGeneralNeto = profesConDatos.reduce((s, p) => s + p.totalNeto, 0);
   const totalGeneralGym = profesConDatos.reduce((s, p) => s + p.totalGym, 0);
+  const totalClases = profesConDatos.reduce((s, p) => s + p.detalles.length, 0);
+  const totalEnHorario = profesConDatos.reduce((s, p) => s + p.enHorario, 0);
+  const pctTxt = (n, t) => t ? (Math.round(n / t * 1000) / 10).toLocaleString('es-CL') + '%' : '0%';
+  const statLaboral = (p) => {
+    if (!(p.profe.horario || []).length) return `<div class="laboral-stat nd">Horario laboral sin definir (Config → ✏️)</div>`;
+    const n = p.enHorario, t = p.detalles.length;
+    return n
+      ? `<div class="laboral-stat mal">⚠️ ${n} de ${t} clases en horario laboral (${pctTxt(n, t)})</div>`
+      : `<div class="laboral-stat bien">✓ 0 de ${t} clases en horario laboral (0%)</div>`;
+  };
 
   contenedor.innerHTML = `
+    <div style="background:var(--surface2);border:1px solid ${totalEnHorario ? 'rgba(255,68,68,0.45)' : 'var(--border)'};border-radius:10px;padding:14px 20px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <span style="font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;">Clases realizadas en horario laboral del profesor</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:${totalEnHorario ? '#ff6b6b' : 'var(--success)'};">${totalEnHorario} de ${totalClases} · ${pctTxt(totalEnHorario, totalClases)}</span>
+    </div>
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div>
         <span style="font-size:0.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;">Total a pagar a profesores (neto) — ${fmtFecha(desde)} → ${fmtFecha(hasta)}</span>
@@ -1902,12 +1955,13 @@ function calcularPagos() {
       </div>
       <span style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);letter-spacing:1px;">${fmt(totalGeneralNeto)}</span>
     </div>
-    ${profesConDatos.map(({ profe, detalles, totalNeto, totalGym, totalBruto }) => `
+    ${profesConDatos.map((grupo) => { const { profe, detalles, totalNeto, totalGym, totalBruto } = grupo; return `
       <div class="pago-card">
         <div class="pago-header">
           <div>
             <div class="pago-profe">👟 ${profe.nombre}</div>
             <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${detalles.length} sesiones · bruto ${fmt(totalBruto)} · comisión gimnasio ${fmt(totalGym)}</div>
+            ${statLaboral(grupo)}
           </div>
           <div class="pago-total">${fmt(totalNeto)}</div>
         </div>
@@ -1915,7 +1969,7 @@ function calcularPagos() {
           ${detalles.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(d => `
             <div class="pago-row">
               <span class="pago-row-client">
-                <strong style="color:var(--text)">${d.cliente}</strong>
+                <strong style="color:var(--text)">${d.cliente}</strong>${d.enHorario ? '<span class="tag-laboral">En horario laboral</span>' : ''}
                 <br><span style="font-size:0.76rem;">${fmtFecha(d.fecha)} ${d.hora} ${d.comentario ? '· ' + d.comentario.slice(0,50) + (d.comentario.length > 50 ? '…':'') : ''}</span>
               </span>
               <span class="pago-row-monto">${fmt(d.neto)}<br><span style="font-size:0.68rem;color:var(--muted);font-weight:400;">bruto ${fmt(d.bruto)} · -${d.comisionPct}%</span></span>
@@ -1923,7 +1977,7 @@ function calcularPagos() {
           `).join('')}
         </div>
       </div>
-    `).join('')}
+    `; }).join('')}
   `;
 }
 
@@ -1938,11 +1992,87 @@ function renderProfes() {
   if (!db.profes.length) { tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px;">Sin profesores</td></tr>'; return; }
   tbody.innerHTML = db.profes.map(p => `
     <tr>
-      <td><strong>${p.nombre}</strong></td>
-      <td style="color:var(--muted);font-size:0.82rem;">${p.email || '—'}</td>
-      <td><button class="btn btn-danger" onclick="eliminarProfe(${p.id})">✕</button></td>
+      <td><strong>${p.nombre}</strong>${p.email ? `<br><span style="color:var(--muted);font-size:0.75rem;">${p.email}</span>` : ''}</td>
+      <td class="horario-resumen">${resumenHorario(p.horario)}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-secondary btn-sm" onclick="openModalProfe(${p.id})" title="Editar profesor y horario">✏️</button>
+          <button class="btn btn-danger" onclick="eliminarProfe(${p.id})">✕</button>
+        </div>
+      </td>
     </tr>
   `).join('');
+}
+
+// ===== HORARIO LABORAL =====
+const DIAS_CORTOS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+function resumenHorario(bloques) {
+  if (!bloques || !bloques.length) return '<span style="opacity:0.7;">Sin definir</span>';
+  return [...bloques]
+    .sort((a, b) => a.dia - b.dia || a.desde.localeCompare(b.desde))
+    .map(b => `${DIAS_CORTOS[b.dia]} ${b.desde}–${b.hasta}`)
+    .join('<br>');
+}
+
+function aMinutos(hhmm) {
+  const [h, m] = String(hhmm || '0:0').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+// 'YYYY-MM-DD' -> 0 = Lunes ... 6 = Domingo (sin desfase de zona horaria)
+function diaSemanaIdx(fechaIso) {
+  const [y, m, d] = fechaIso.split('-').map(Number);
+  return (new Date(y, m - 1, d).getDay() + 6) % 7;
+}
+
+// true si la sesión (inicio + duración) se cruza con algún tramo laboral del profesor
+function sesionEnHorarioLaboral(s) {
+  const c = getContrato(s.contratoId);
+  const p = getProfe(c.profeId);
+  const bloques = p.horario || [];
+  if (!bloques.length || !s.hora || !s.fecha) return false;
+  const dia = diaSemanaIdx(s.fecha);
+  const ini = aMinutos(s.hora);
+  const fin = ini + (Number(s.duracion) || 60);
+  return bloques.some(b => Number(b.dia) === dia && ini < aMinutos(b.hasta) && fin > aMinutos(b.desde));
+}
+
+function filaTramoHorario(b = { dia: 0, desde: '09:00', hasta: '18:00' }) {
+  const row = document.createElement('div');
+  row.className = 'horario-row';
+  row.innerHTML = `
+    <select class="form-control h-dia">${DIAS_SEMANA.map((d, i) => `<option value="${i}" ${Number(b.dia) === i ? 'selected' : ''}>${d}</option>`).join('')}</select>
+    <input type="time" class="form-control h-desde" value="${b.desde}">
+    <input type="time" class="form-control h-hasta" value="${b.hasta}">
+    <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">✕</button>`;
+  return row;
+}
+
+function agregarTramoHorario(b) {
+  document.getElementById('p-horario').appendChild(filaTramoHorario(b));
+}
+
+function presetHorarioLunVie() {
+  const cont = document.getElementById('p-horario');
+  cont.innerHTML = '';
+  for (let d = 0; d < 5; d++) agregarTramoHorario({ dia: d, desde: '09:00', hasta: '18:00' });
+}
+
+function leerHorarioModal() {
+  const bloques = [];
+  for (const row of document.querySelectorAll('#p-horario .horario-row')) {
+    const dia = Number(row.querySelector('.h-dia').value);
+    const desde = row.querySelector('.h-desde').value;
+    const hasta = row.querySelector('.h-hasta').value;
+    if (!desde || !hasta) continue;
+    if (aMinutos(hasta) <= aMinutos(desde)) {
+      alert(`En ${DIAS_SEMANA[dia]} la hora "hasta" debe ser mayor que "desde".`);
+      return null;
+    }
+    bloques.push({ dia, desde, hasta });
+  }
+  return bloques;
 }
 
 function renderClientes() {
@@ -1957,11 +2087,23 @@ function renderClientes() {
   `).join('');
 }
 
-function openModalProfe() {
-  document.getElementById('p-nombre').value = '';
-  document.getElementById('p-email').value = '';
-  document.getElementById('p-telefono').value = '';
+let profeEditandoId = null;
+
+function openModalProfe(id) {
+  const p = id ? getProfe(id) : {};
+  profeEditandoId = id || null;
+  document.getElementById('modal-profe-titulo').textContent = id ? 'EDITAR PROFESOR' : 'NUEVO PROFESOR';
+  document.getElementById('p-nombre').value = p.nombre || '';
+  document.getElementById('p-email').value = p.email || '';
+  document.getElementById('p-telefono').value = p.telefono || '';
+  const cont = document.getElementById('p-horario');
+  cont.innerHTML = '';
+  (p.horario || []).forEach(b => agregarTramoHorario(b));
   openModal('modal-profe');
+}
+
+function errorColumnaHorario(error) {
+  return /horario_laboral/i.test(error?.message || '');
 }
 
 async function guardarProfe() {
@@ -1969,12 +2111,28 @@ async function guardarProfe() {
   if (!nombre) { alert('Ingresa el nombre.'); return; }
   const email = document.getElementById('p-email').value.trim();
   const telefono = document.getElementById('p-telefono').value.trim();
+  const horario = leerHorarioModal();
+  if (horario === null) return;
+  const avisoSQL = '\n\nFalta crear la columna "horario_laboral" en la tabla profes de Supabase (ver instrucciones).';
 
-  const { data, error } = await supabaseClient.from('profes').insert({ nombre, email, telefono }).select().single();
-  if (error) { alert('Error al guardar el profesor: ' + error.message); return; }
-
-  db.profes.push({ id: data.id, nombre, email, telefono });
-  await logAudit('crear', 'profe', `Profesor agregado: ${nombre}`);
+  if (profeEditandoId) {
+    const { error } = await supabaseClient.from('profes')
+      .update({ nombre, email, telefono, horario_laboral: horario }).eq('id', profeEditandoId);
+    if (error) { alert('Error al actualizar el profesor: ' + error.message + (errorColumnaHorario(error) ? avisoSQL : '')); return; }
+    const p = getProfe(profeEditandoId);
+    const antes = resumenHorario(p.horario).replace(/<br>/g, ', ').replace(/<[^>]+>/g, '');
+    Object.assign(p, { nombre, email, telefono, horario });
+    const despues = resumenHorario(horario).replace(/<br>/g, ', ').replace(/<[^>]+>/g, '');
+    await logAudit('editar', 'profe', `Profesor ${nombre} editado` + (antes !== despues ? ` · Horario: ${antes} → ${despues}` : ''));
+  } else {
+    const fila = { nombre, email, telefono };
+    if (horario.length) fila.horario_laboral = horario;
+    const { data, error } = await supabaseClient.from('profes').insert(fila).select().single();
+    if (error) { alert('Error al guardar el profesor: ' + error.message + (errorColumnaHorario(error) ? avisoSQL : '')); return; }
+    db.profes.push({ id: data.id, nombre, email, telefono, horario });
+    await logAudit('crear', 'profe', `Profesor agregado: ${nombre}`);
+  }
+  profeEditandoId = null;
   closeModal('modal-profe');
   renderProfes();
 }
@@ -2161,7 +2319,9 @@ function renderCalendario() {
         const c = getContrato(s.contratoId);
         const cliente = getCliente(c.clienteId);
         const numero = getSesionNumero(s);
-        return `<div class="cal-session" onclick="openModalSesionEdit(${s.id})" title="${cliente.nombre || '—'} · ${s.hora} · ${s.comentario || ''}">
+        const enHorario = sesionEnHorarioLaboral(s);
+        const profeNom = getProfe(c.profeId).nombre || '';
+        return `<div class="cal-session${enHorario ? ' en-horario' : ''}" onclick="openModalSesionEdit(${s.id})" title="${cliente.nombre || '—'} · ${s.hora} · Profe: ${profeNom}${enHorario ? ' · ⚠️ DENTRO DEL HORARIO LABORAL DEL PROFESOR' : ''}${s.comentario ? ' · ' + s.comentario : ''}">
           <span class="cal-session-name">${cliente.nombre || '—'}</span>
           <span class="cal-session-num">${numero}/${c.sesionesTotal ?? '?'}</span>
         </div>`;
